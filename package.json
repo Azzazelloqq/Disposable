@@ -1,0 +1,17 @@
+{
+  "name": "com.azzazello.disposable",
+  "version": "1.0.0",
+  "displayName": "Disposable",
+  "description": "Simple disposable pattern",
+  "unity": "2020.3",
+  "dependencies": {
+	  },
+  "keywords": [
+    "disposable"
+  ],
+  "author": {
+    "name": "Azzazelloqq",
+    "email": "bog22232@ya.ru",
+    "url": "https://github.com/Azzazelloqq"
+  }
+}
