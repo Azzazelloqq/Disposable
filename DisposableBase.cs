@@ -11,7 +11,7 @@ public abstract class DisposableBase : IDisposable
         Dispose(false);
     }
 
-    public void Dispose()
+    public virtual void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
