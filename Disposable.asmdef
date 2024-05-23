@@ -1,6 +1,6 @@
 {
     "name": "Disposable",
-    "rootNamespace": "",
+    "rootNamespace": "Disposable",
     "references": [
 	],
     "includePlatforms": [],
