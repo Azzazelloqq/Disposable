@@ -2,44 +2,70 @@
 
 namespace Disposable
 {
+/// <summary>
+/// Provides a base class for implementing the IDisposable pattern.
+/// </summary>
 public abstract class DisposableBase : IDisposable
 {
-    protected bool disposed = false;
+	/// <summary>
+	/// Indicates whether the object has already been disposed.
+	/// </summary>
+	protected bool disposed = false;
 
-    ~DisposableBase()
-    {
-        Dispose(false);
-    }
+	/// <summary>
+	/// Finalizer to release resources during garbage collection.
+	/// </summary>
+	~DisposableBase()
+	{
+		Dispose(false);
+	}
 
-    public virtual void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
+	/// <summary>
+	/// Releases all resources used by the object.
+	/// </summary>
+	public virtual void Dispose()
+	{
+		Dispose(true);
+		GC.SuppressFinalize(this);
+	}
 
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposed)
-        {
-            return;
-        }
+	/// <summary>
+	/// Releases unmanaged and optionally managed resources.
+	/// </summary>
+	/// <param name="disposing">
+	///   <c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.
+	/// </param>
+	protected virtual void Dispose(bool disposing)
+	{
+		if (disposed)
+		{
+			return;
+		}
 
-        if (disposing)
-        {
-            DisposeManagedResources();
-        }
+		if (disposing)
+		{
+			DisposeManagedResources();
+		}
 
-        DisposeUnmanagedResources();
+		DisposeUnmanagedResources();
 
-        disposed = true;
-    }
+		disposed = true;
+	}
 
-    protected virtual void DisposeManagedResources()
-    {
-    }
+	/// <summary>
+	/// Releases managed resources.
+	/// Override this method to release your own managed resources.
+	/// </summary>
+	protected virtual void DisposeManagedResources()
+	{
+	}
 
-    protected virtual void DisposeUnmanagedResources()
-    {
-    }
+	/// <summary>
+	/// Releases unmanaged resources.
+	/// Override this method to release your own unmanaged resources.
+	/// </summary>
+	protected virtual void DisposeUnmanagedResources()
+	{
+	}
 }
 }
