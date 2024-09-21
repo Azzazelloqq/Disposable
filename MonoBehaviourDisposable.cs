@@ -55,7 +55,7 @@ public class MonoBehaviourDisposable : MonoBehaviour
 	/// Releases managed and unmanaged resources.
 	/// </summary>
 	/// <param name="disposing">True if called from Dispose(); false if called from the destructor.</param>
-	protected virtual void Dispose(bool disposing)
+	protected void Dispose(bool disposing)
 	{
 		if (isDisposed)
 		{
