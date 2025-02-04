@@ -24,14 +24,6 @@ public class MonoBehaviourDisposable : MonoBehaviour
 	protected readonly ICompositeDisposable compositeDisposable = new CompositeDisposable();
 
 	/// <summary>
-	/// Destructor to release resources during garbage collection.
-	/// </summary>
-	~MonoBehaviourDisposable()
-	{
-		Dispose(false);
-	}
-
-	/// <summary>
 	/// Public method to release resources and destroy the GameObject.
 	/// </summary>
 	public virtual void Dispose()
