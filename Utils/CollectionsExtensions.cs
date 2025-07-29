@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Disposable.Utils
 {
@@ -46,8 +48,54 @@ public static class CollectionsExtensions
 			disposable?.Dispose();
 			disposables[i] = null;
 		}
+	}
 
-		disposables = Array.Empty<IDisposable>();
+	public static async ValueTask DisposeAllAsync(
+		this IEnumerable<DisposableBase> disposables,
+		CancellationToken token = default)
+	{
+		foreach (var disposableBase in disposables)
+		{
+			token.ThrowIfCancellationRequested();
+			if (disposableBase is null)
+			{
+				continue;
+			}
+
+			await disposableBase.DisposeAsync(token).ConfigureAwait(false);
+		}
+	}
+
+	public static async ValueTask DisposeAllAsync(
+		this IEnumerable<IAsyncDisposable> disposables,
+		CancellationToken token = default)
+	{
+		foreach (var d in disposables)
+		{
+			token.ThrowIfCancellationRequested();
+			if (d is null)
+			{
+				continue;
+			}
+
+			await d.DisposeAsync().ConfigureAwait(false);
+		}
+	}
+
+	public static async ValueTask DisposeAllAsync(
+		this IAsyncDisposable[] disposables,
+		CancellationToken token = default)
+	{
+		for (var i = 0; i < disposables.Length; i++)
+		{
+			token.ThrowIfCancellationRequested();
+			var d = disposables[i];
+			if (d is not null)
+			{
+				await d.DisposeAsync().ConfigureAwait(false);
+				disposables[i] = null;
+			}
+		}
 	}
 }
 }

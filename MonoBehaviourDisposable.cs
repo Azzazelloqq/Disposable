@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Disposable
@@ -8,24 +10,11 @@ namespace Disposable
 /// </summary>
 public class MonoBehaviourDisposable : MonoBehaviour
 {
-	/// <summary>
-	/// Flag indicating whether the object has already been disposed.
-	/// </summary>
 	protected bool isDisposed = false;
-
-	/// <summary>
-	/// Flag indicating whether the object has already been destroyed.
-	/// </summary>
 	protected bool isDestroyed = false;
 
-	/// <summary>
-	/// Composite IDisposable to manage multiple IDisposable resources.
-	/// </summary>
 	protected readonly ICompositeDisposable compositeDisposable = new CompositeDisposable();
 
-	/// <summary>
-	/// Public method to release resources and destroy the GameObject.
-	/// </summary>
 	public virtual void Dispose()
 	{
 		if (isDisposed)
@@ -40,13 +29,45 @@ public class MonoBehaviourDisposable : MonoBehaviour
 
 		isDisposed = true;
 
-		Destroy(gameObject);
+		if (!isDestroyed)
+		{
+			Destroy(gameObject);
+			isDestroyed = true;
+		}
 	}
 
-	/// <summary>
-	/// Releases managed and unmanaged resources.
-	/// </summary>
-	/// <param name="disposing">True if called from Dispose(); false if called from the destructor.</param>
+	public async ValueTask DisposeAsync()
+	{
+		await DisposeAsync(CancellationToken.None).ConfigureAwait(false);
+	}
+
+	public async ValueTask DisposeAsync(CancellationToken token)
+	{
+		if (isDisposed)
+		{
+			return;
+		}
+
+		if (compositeDisposable is not null)
+		{
+			await compositeDisposable.DisposeAsync(token).ConfigureAwait(false);
+		}
+
+		await DisposeAsyncCore(token).ConfigureAwait(false);
+
+		Dispose(false);
+
+		isDisposed = true;
+
+		if (!isDestroyed)
+		{
+			Destroy(gameObject);
+			isDestroyed = true;
+		}
+
+		GC.SuppressFinalize(this);
+	}
+
 	protected virtual void Dispose(bool disposing)
 	{
 		if (isDisposed)
@@ -70,9 +91,6 @@ public class MonoBehaviourDisposable : MonoBehaviour
 		isDisposed = true;
 	}
 
-	/// <summary>
-	/// Called when the Unity GameObject is destroyed.
-	/// </summary>
 	private void OnDestroy()
 	{
 		if (isDisposed)
@@ -80,24 +98,22 @@ public class MonoBehaviourDisposable : MonoBehaviour
 			return;
 		}
 
+		compositeDisposable?.Dispose();
 		Dispose(true);
 		isDestroyed = true;
 	}
 
-	/// <summary>
-	/// Releases managed resources.
-	/// Override this method to release your own managed resources.
-	/// </summary>
 	protected virtual void DisposeManagedResources()
 	{
 	}
 
-	/// <summary>
-	/// Releases unmanaged resources.
-	/// Override this method to release your own unmanaged resources.
-	/// </summary>
 	protected virtual void DisposeUnmanagedResources()
 	{
+	}
+
+	protected virtual ValueTask DisposeAsyncCore(CancellationToken token)
+	{
+		return default;
 	}
 }
 }

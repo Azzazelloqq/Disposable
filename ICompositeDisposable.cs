@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Disposable
 {
 /// <summary>
 /// Represents a composite disposable that manages multiple <see cref="IDisposable"/> resources.
 /// </summary>
-public interface ICompositeDisposable : IDisposable
+public interface ICompositeDisposable : IDisposable, IAsyncDisposable
 {
-	/// <summary>
-	/// Gets the list of disposables managed by this composite disposable.
-	/// </summary>
-	internal List<IDisposable> Disposables { get; }
-
 	/// <summary>
 	/// Adds a disposable resource to the composite.
 	/// </summary>
@@ -39,5 +36,16 @@ public interface ICompositeDisposable : IDisposable
 	/// </summary>
 	/// <param name="disposables">The collection of disposables to add.</param>
 	public void AddDisposable(IEnumerable<IDisposable> disposables);
+	
+	public void AddDisposable(IAsyncDisposable disposable);
+	public void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable);
+	public void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable, IAsyncDisposable thirdDisposable);
+	public void AddDisposable(IEnumerable<IAsyncDisposable> disposables);
+	public ValueTask DisposeAsync(CancellationToken token, bool continueOnCapturedContext = false);
+	
+	public void AddDisposable(DisposableBase disposable);
+	public void AddDisposable(DisposableBase firstDisposable, DisposableBase secondDisposable);
+	public void AddDisposable(DisposableBase firstDisposable, DisposableBase secondDisposable, DisposableBase thirdDisposable);
+	public void AddDisposable(IEnumerable<DisposableBase> disposables);
 }
 }
