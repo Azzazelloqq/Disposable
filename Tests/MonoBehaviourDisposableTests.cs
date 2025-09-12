@@ -158,6 +158,170 @@ namespace Disposable.Tests
             Assert.ThrowsAsync<TaskCanceledException>(
                 async () => await _testComponent.DisposeAsync(cts.Token));
         }
+
+        /// <summary>
+        /// Test that disposeCancellationToken is accessible and not cancelled before disposal
+        /// </summary>
+        [Test]
+        public void DisposeCancellationToken_BeforeDispose_IsNotCancelled()
+        {
+            // Arrange & Act
+            var token = _testComponent.GetDisposeCancellationToken();
+            
+            // Assert
+            Assert.IsFalse(token.IsCancellationRequested, "Cancellation token should not be cancelled before disposal");
+        }
+
+        /// <summary>
+        /// Test that disposeCancellationToken is cancelled after disposal
+        /// </summary>
+        [Test]
+        public void DisposeCancellationToken_AfterDispose_IsCancelled()
+        {
+            // Arrange
+            var token = _testComponent.GetDisposeCancellationToken(); // Get token before disposal
+            
+            // Act
+            _testComponent.Dispose();
+            
+            // Assert
+            Assert.IsTrue(token.IsCancellationRequested, "Cancellation token should be cancelled after disposal");
+        }
+
+        /// <summary>
+        /// Test that disposeCancellationToken is cancelled after async disposal
+        /// </summary>
+        [Test]
+        public async Task DisposeCancellationToken_AfterDisposeAsync_IsCancelled()
+        {
+            // Arrange
+            var token = _testComponent.GetDisposeCancellationToken();
+            
+            // Act
+            await _testComponent.DisposeAsync();
+            
+            // Assert
+            Assert.IsTrue(token.IsCancellationRequested, "Cancellation token should be cancelled after async disposal");
+        }
+
+        /// <summary>
+        /// Test that disposeCancellationToken is cancelled when GameObject is destroyed
+        /// </summary>
+        [Test]
+        public void DisposeCancellationToken_AfterOnDestroy_IsCancelled()
+        {
+            // Arrange
+            var token = _testComponent.GetDisposeCancellationToken();
+            
+            // Act
+            UnityEngine.Object.DestroyImmediate(_testGameObject);
+            
+            // Assert
+            Assert.IsTrue(token.IsCancellationRequested, "Cancellation token should be cancelled after OnDestroy");
+        }
+        
+        /// <summary>
+        /// Test that destroyCancellationToken is accessible and not cancelled before destruction
+        /// </summary>
+        [Test]
+        public void DestroyCancellationToken_BeforeDestroy_IsNotCancelled()
+        {
+            // Arrange & Act
+            var token = _testComponent.GetDestroyCancellationToken();
+            
+            // Assert
+            Assert.IsFalse(token.IsCancellationRequested, "Destroy cancellation token should not be cancelled before destruction");
+        }
+        
+        /// <summary>
+        /// Test that destroyCancellationToken is cancelled after GameObject destruction
+        /// </summary>
+        [Test]
+        public void DestroyCancellationToken_AfterDestroy_IsCancelled()
+        {
+            // Arrange
+            var token = _testComponent.GetDestroyCancellationToken();
+            
+            // Act
+            UnityEngine.Object.DestroyImmediate(_testGameObject);
+            
+            // Assert
+            Assert.IsTrue(token.IsCancellationRequested, "Destroy cancellation token should be cancelled after destruction");
+        }
+        
+        /// <summary>
+        /// Test WaitForDisposalAsync completes when disposed
+        /// </summary>
+        [Test]
+        public async Task WaitForDisposalAsync_CompletesWhenDisposed()
+        {
+            // Arrange
+            var waitTask = _testComponent.WaitForDisposalAsync();
+            
+            // Assert - task should not be completed before disposal
+            Assert.IsFalse(waitTask.IsCompleted, "Wait task should not be completed before disposal");
+            
+            // Act - dispose the component
+            _testComponent.Dispose();
+            
+            // Assert - task should complete after disposal
+            await waitTask;
+            Assert.IsTrue(waitTask.IsCompleted, "Wait task should complete after disposal");
+        }
+        
+        /// <summary>
+        /// Test WaitForDestroyAsync completes when GameObject is destroyed
+        /// </summary>
+        [Test]
+        public async Task WaitForDestroyAsync_CompletesWhenDestroyed()
+        {
+            // Arrange
+            var waitTask = _testComponent.WaitForDestroyAsync();
+            
+            // Assert - task should not be completed before destruction
+            Assert.IsFalse(waitTask.IsCompleted, "Wait task should not be completed before destruction");
+            
+            // Act - destroy the GameObject
+            UnityEngine.Object.DestroyImmediate(_testGameObject);
+            
+            // Assert - task should complete after destruction
+            await waitTask;
+            Assert.IsTrue(waitTask.IsCompleted, "Wait task should complete after destruction");
+        }
+        
+        /// <summary>
+        /// Test WaitForDisposalAsync returns immediately if already disposed
+        /// </summary>
+        [Test]
+        public async Task WaitForDisposalAsync_ReturnsImmediatelyIfAlreadyDisposed()
+        {
+            // Arrange
+            _testComponent.Dispose();
+            
+            // Act
+            var waitTask = _testComponent.WaitForDisposalAsync();
+            
+            // Assert
+            Assert.IsTrue(waitTask.IsCompleted, "Wait task should be completed immediately if already disposed");
+            await waitTask; // Should not block
+        }
+        
+        /// <summary>
+        /// Test WaitForDestroyAsync returns immediately if already destroyed
+        /// </summary>
+        [Test]
+        public async Task WaitForDestroyAsync_ReturnsImmediatelyIfAlreadyDestroyed()
+        {
+            // Arrange
+            UnityEngine.Object.DestroyImmediate(_testGameObject);
+            
+            // Act
+            var waitTask = _testComponent.WaitForDestroyAsync();
+            
+            // Assert
+            Assert.IsTrue(waitTask.IsCompleted, "Wait task should be completed immediately if already destroyed");
+            await waitTask; // Should not block
+        }
     }
 
             /// <summary>
@@ -170,6 +334,10 @@ namespace Disposable.Tests
         public bool AsyncDisposeCoreCalled { get; private set; }
         public int DisposeCallCount { get; private set; }
         public CancellationToken ReceivedToken { get; private set; }
+        
+        // Expose protected members for testing
+        public CancellationToken GetDisposeCancellationToken() => disposeCancellationToken;
+        public CancellationToken GetDestroyCancellationToken() => destroyCancellationToken;
 
         protected override void DisposeManagedResources()
         {

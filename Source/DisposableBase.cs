@@ -10,6 +10,36 @@ namespace Disposable
 public abstract class DisposableBase : IDisposable, IAsyncDisposable
 {
 	protected int _disposed;
+	
+	/// <summary>
+	/// The cancellation token source that is used to signal disposal of the object.
+	/// Lazily initialized to avoid unnecessary allocations.
+	/// </summary>
+	private CancellationTokenSource _disposeCancellationTokenSource;
+	private readonly object _tokenSourceLock = new object();
+	
+	/// <summary>
+	/// Gets the cancellation token source, creating it if necessary.
+	/// </summary>
+	protected CancellationTokenSource DisposeCancellationTokenSource
+	{
+		get
+		{
+			if (_disposeCancellationTokenSource == null)
+			{
+				lock (_tokenSourceLock)
+				{
+					_disposeCancellationTokenSource ??= new CancellationTokenSource();
+				}
+			}
+			return _disposeCancellationTokenSource;
+		}
+	}
+	
+	/// <summary>
+	/// Gets the cancellation token that is triggered when the object is disposed.
+	/// </summary>
+	protected CancellationToken disposeCancellationToken => DisposeCancellationTokenSource.Token;
 
 	/// <summary>
 	/// Gets a value indicating whether this instance has been disposed.
@@ -52,6 +82,16 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		if (disposing)
 		{
 			DisposeManagedResources();
+			
+			// Cancel and dispose the cancellation token source if it was created
+			if (_disposeCancellationTokenSource != null)
+			{
+				if (!_disposeCancellationTokenSource.IsCancellationRequested)
+				{
+					_disposeCancellationTokenSource.Cancel();
+				}
+				_disposeCancellationTokenSource.Dispose();
+			}
 		}
 
 		DisposeUnmanagedResources();
@@ -94,6 +134,17 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	protected virtual ValueTask DisposeAsyncCore(CancellationToken token, bool continueOnCapturedContext)
 	{
 		DisposeManagedResources();
+		
+		// Cancel and dispose the cancellation token source if it was created
+		if (_disposeCancellationTokenSource != null)
+		{
+			if (!_disposeCancellationTokenSource.IsCancellationRequested)
+			{
+				_disposeCancellationTokenSource.Cancel();
+			}
+			_disposeCancellationTokenSource.Dispose();
+		}
+		
 		return default;
 	}
 
@@ -109,6 +160,50 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// </summary>
 	protected virtual void DisposeUnmanagedResources()
 	{
+	}
+	
+	/// <summary>
+	/// Waits for disposal to complete asynchronously.
+	/// </summary>
+	/// <returns>A task that completes when the object is disposed.</returns>
+	public Task WaitForDisposalAsync()
+	{
+		if (IsDisposed)
+		{
+			return Task.CompletedTask;
+		}
+		
+		// Create TaskCompletionSource for waiting
+		var tcs = new TaskCompletionSource<bool>();
+		
+		// Register callback to complete the task when disposed
+		disposeCancellationToken.Register(() => tcs.TrySetResult(true));
+		
+		return tcs.Task;
+	}
+	
+	/// <summary>
+	/// Waits for disposal to complete asynchronously with cancellation support.
+	/// </summary>
+	/// <param name="cancellationToken">The cancellation token to observe while waiting.</param>
+	/// <returns>A task that completes when the object is disposed or the wait is cancelled.</returns>
+	public async Task WaitForDisposalAsync(CancellationToken cancellationToken)
+	{
+		if (IsDisposed)
+		{
+			return;
+		}
+		
+		// Create TaskCompletionSource for waiting
+		var tcs = new TaskCompletionSource<bool>();
+		
+		// Register callback to complete the task when disposed
+		using var disposeRegistration = disposeCancellationToken.Register(() => tcs.TrySetResult(true));
+		
+		// Register callback to cancel the task if external token is cancelled
+		using var cancelRegistration = cancellationToken.Register(() => tcs.TrySetCanceled());
+		
+		await tcs.Task.ConfigureAwait(false);
 	}
 }
 }
