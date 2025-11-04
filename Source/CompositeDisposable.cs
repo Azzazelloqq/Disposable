@@ -26,6 +26,11 @@ public class CompositeDisposable : ICompositeDisposable
 	private readonly int _disposablesCapacity;
 	
 	/// <summary>
+	/// Indicates whether this instance has been disposed.
+	/// </summary>
+	private bool _isDisposed;
+	
+	/// <summary>
 	/// Synchronization object for thread-safe operations.
 	/// </summary>
 	private readonly object _lock = new object();
@@ -51,6 +56,12 @@ public class CompositeDisposable : ICompositeDisposable
 		
 		lock (_lock)
 		{
+			if (_isDisposed)
+			{
+				return;
+			}
+			
+			_isDisposed = true;
 			disposables = _disposables;
 			universalDisposables = _asyncDisposablesWithToken;
 			asyncDisposables = _asyncDisposables;
@@ -132,6 +143,12 @@ public class CompositeDisposable : ICompositeDisposable
 		
 		lock (_lock)
 		{
+			if (_isDisposed)
+			{
+				return;
+			}
+			
+			_isDisposed = true;
 			disposables = _disposables;
 			asyncDisposablesWithToken = _asyncDisposablesWithToken;
 			asyncDisposables = _asyncDisposables;
@@ -300,6 +317,13 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposable immediately
+			if (_isDisposed)
+			{
+				disposable?.Dispose();
+				return;
+			}
+			
 			_disposables ??= new List<IDisposable>(_disposablesCapacity);
 			_disposables.Add(disposable);
 		}
@@ -310,6 +334,14 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposables immediately
+			if (_isDisposed)
+			{
+				firstDisposable?.Dispose();
+				secondDisposable?.Dispose();
+				return;
+			}
+			
 			_disposables ??= new List<IDisposable>(_disposablesCapacity);
 			_disposables.Add(firstDisposable);
 			_disposables.Add(secondDisposable);
@@ -321,6 +353,15 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposables immediately
+			if (_isDisposed)
+			{
+				firstDisposable?.Dispose();
+				secondDisposable?.Dispose();
+				thirdDisposable?.Dispose();
+				return;
+			}
+			
 			_disposables ??= new List<IDisposable>(_disposablesCapacity);
 			_disposables.Add(firstDisposable);
 			_disposables.Add(secondDisposable);
@@ -333,6 +374,16 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposables immediately
+			if (_isDisposed)
+			{
+				foreach (var disposable in disposables)
+				{
+					disposable?.Dispose();
+				}
+				return;
+			}
+			
 			_disposables ??= new List<IDisposable>(_disposablesCapacity);
 			_disposables.AddRange(disposables);
 		}
@@ -343,6 +394,17 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposable immediately
+			if (_isDisposed)
+			{
+				// For async disposables, we need to use sync disposal
+				if (disposable is IDisposable syncDisposable)
+				{
+					syncDisposable.Dispose();
+				}
+				return;
+			}
+			
 			_asyncDisposables ??= new List<IAsyncDisposable>(_disposablesCapacity);
 			_asyncDisposables.Add(disposable);
 		}
@@ -353,6 +415,16 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposables immediately
+			if (_isDisposed)
+			{
+				if (firstDisposable is IDisposable syncFirst)
+					syncFirst.Dispose();
+				if (secondDisposable is IDisposable syncSecond)
+					syncSecond.Dispose();
+				return;
+			}
+			
 			_asyncDisposables ??= new List<IAsyncDisposable>(_disposablesCapacity);
 			_asyncDisposables.Add(firstDisposable);
 			_asyncDisposables.Add(secondDisposable);
@@ -364,6 +436,18 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposables immediately
+			if (_isDisposed)
+			{
+				if (firstDisposable is IDisposable syncFirst)
+					syncFirst.Dispose();
+				if (secondDisposable is IDisposable syncSecond)
+					syncSecond.Dispose();
+				if (thirdDisposable is IDisposable syncThird)
+					syncThird.Dispose();
+				return;
+			}
+			
 			_asyncDisposables ??= new List<IAsyncDisposable>(_disposablesCapacity);
 			_asyncDisposables.Add(firstDisposable);
 			_asyncDisposables.Add(secondDisposable);
@@ -376,6 +460,19 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposables immediately
+			if (_isDisposed)
+			{
+				foreach (var disposable in disposables)
+				{
+					if (disposable is IDisposable syncDisposable)
+					{
+						syncDisposable.Dispose();
+					}
+				}
+				return;
+			}
+			
 			_asyncDisposables ??= new List<IAsyncDisposable>(_disposablesCapacity);
 			_asyncDisposables.AddRange(disposables);
 		}
@@ -386,6 +483,13 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			// If already disposed, dispose the incoming disposable immediately
+			if (_isDisposed)
+			{
+				disposable?.Dispose();
+				return;
+			}
+			
 			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
 			_asyncDisposablesWithToken.Add(disposable);
 		}

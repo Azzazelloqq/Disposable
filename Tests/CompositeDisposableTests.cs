@@ -215,6 +215,70 @@ namespace Disposable.Tests
             Assert.DoesNotThrow(() => _compositeDisposable.Dispose());
             Assert.IsTrue(mockDisposable.IsDisposed, "Disposable should remain disposed");
         }
+
+        /// <summary>
+        /// Test that adding a disposable to already disposed CompositeDisposable
+        /// immediately disposes the added disposable
+        /// </summary>
+        [Test]
+        public void AddDisposable_ToDisposedComposite_DisposesImmediately()
+        {
+            // Arrange
+            _compositeDisposable.Dispose();
+            var mockDisposable = new MockDisposable();
+            
+            // Act
+            _compositeDisposable.AddDisposable(mockDisposable);
+            
+            // Assert
+            Assert.IsTrue(mockDisposable.IsDisposed, 
+                "Disposable should be disposed immediately when added to disposed composite");
+        }
+
+        /// <summary>
+        /// Test that adding multiple disposables to already disposed CompositeDisposable
+        /// immediately disposes all added disposables
+        /// </summary>
+        [Test]
+        public void AddDisposable_MultipleToDisposedComposite_AllDisposeImmediately()
+        {
+            // Arrange
+            _compositeDisposable.Dispose();
+            var mockDisposable1 = new MockDisposable();
+            var mockDisposable2 = new MockDisposable();
+            var mockDisposable3 = new MockDisposable();
+            
+            // Act
+            _compositeDisposable.AddDisposable(mockDisposable1, mockDisposable2);
+            _compositeDisposable.AddDisposable(mockDisposable3);
+            
+            // Assert
+            Assert.IsTrue(mockDisposable1.IsDisposed, 
+                "First disposable should be disposed immediately");
+            Assert.IsTrue(mockDisposable2.IsDisposed, 
+                "Second disposable should be disposed immediately");
+            Assert.IsTrue(mockDisposable3.IsDisposed, 
+                "Third disposable should be disposed immediately");
+        }
+
+        /// <summary>
+        /// Test that adding async disposable to already disposed CompositeDisposable
+        /// attempts to dispose it synchronously if it implements IDisposable
+        /// </summary>
+        [Test]
+        public void AddAsyncDisposable_ToDisposedComposite_DisposesImmediately()
+        {
+            // Arrange
+            _compositeDisposable.Dispose();
+            var mockAsyncDisposable = new MockAsyncDisposableWithSync();
+            
+            // Act
+            _compositeDisposable.AddDisposable((IAsyncDisposable)mockAsyncDisposable);
+            
+            // Assert
+            Assert.IsTrue(mockAsyncDisposable.IsSyncDisposed, 
+                "Async disposable should be disposed synchronously when added to disposed composite");
+        }
     }
 
             /// <summary>
@@ -241,6 +305,26 @@ namespace Disposable.Tests
         {
             IsDisposed = true;
             return default;
+        }
+    }
+
+            /// <summary>
+        /// Mock class for testing IAsyncDisposable that also implements IDisposable
+        /// </summary>
+    public class MockAsyncDisposableWithSync : IAsyncDisposable, IDisposable
+    {
+        public bool IsAsyncDisposed { get; private set; }
+        public bool IsSyncDisposed { get; private set; }
+
+        public ValueTask DisposeAsync()
+        {
+            IsAsyncDisposed = true;
+            return default;
+        }
+
+        public void Dispose()
+        {
+            IsSyncDisposed = true;
         }
     }
 
