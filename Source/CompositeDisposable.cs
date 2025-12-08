@@ -106,12 +106,24 @@ public class CompositeDisposable : ICompositeDisposable
 		{
 			if (asyncDisposables.Count > 0)
 			{
-				Logger.LogError(new Exception($"Have async disposables. Invoke async dispose with lock thread. Maybe need invoke {DisposeAsync()}."));
+				Logger.LogError("Have async disposables. Invoke async dispose with lock thread. Maybe need invoke System.Threading.Tasks.ValueTask.");
 			}
 
 			foreach (var asyncDisposable in asyncDisposables)
 			{
-				asyncDisposable?.DisposeAsync();
+				if (asyncDisposable is null)
+				{
+					continue;
+				}
+
+				try
+				{
+					DisposeAsyncBlocking(asyncDisposable);
+				}
+				catch (Exception ex)
+				{
+					firstException ??= ex;
+				}
 			}
 		}
 
@@ -236,6 +248,12 @@ public class CompositeDisposable : ICompositeDisposable
 		
 		lock (_lock)
 		{
+			if (_isDisposed)
+			{
+				return;
+			}
+
+			_isDisposed = true;
 			disposables = _disposables;
 			asyncDisposablesWithToken = _asyncDisposablesWithToken;
 			asyncDisposables = _asyncDisposables;
@@ -397,11 +415,7 @@ public class CompositeDisposable : ICompositeDisposable
 			// If already disposed, dispose the incoming disposable immediately
 			if (_isDisposed)
 			{
-				// For async disposables, we need to use sync disposal
-				if (disposable is IDisposable syncDisposable)
-				{
-					syncDisposable.Dispose();
-				}
+				DisposeAsyncBlocking(disposable);
 				return;
 			}
 			
@@ -418,10 +432,8 @@ public class CompositeDisposable : ICompositeDisposable
 			// If already disposed, dispose the incoming disposables immediately
 			if (_isDisposed)
 			{
-				if (firstDisposable is IDisposable syncFirst)
-					syncFirst.Dispose();
-				if (secondDisposable is IDisposable syncSecond)
-					syncSecond.Dispose();
+				DisposeAsyncBlocking(firstDisposable);
+				DisposeAsyncBlocking(secondDisposable);
 				return;
 			}
 			
@@ -439,12 +451,9 @@ public class CompositeDisposable : ICompositeDisposable
 			// If already disposed, dispose the incoming disposables immediately
 			if (_isDisposed)
 			{
-				if (firstDisposable is IDisposable syncFirst)
-					syncFirst.Dispose();
-				if (secondDisposable is IDisposable syncSecond)
-					syncSecond.Dispose();
-				if (thirdDisposable is IDisposable syncThird)
-					syncThird.Dispose();
+				DisposeAsyncBlocking(firstDisposable);
+				DisposeAsyncBlocking(secondDisposable);
+				DisposeAsyncBlocking(thirdDisposable);
 				return;
 			}
 			
@@ -465,10 +474,7 @@ public class CompositeDisposable : ICompositeDisposable
 			{
 				foreach (var disposable in disposables)
 				{
-					if (disposable is IDisposable syncDisposable)
-					{
-						syncDisposable.Dispose();
-					}
+					DisposeAsyncBlocking(disposable);
 				}
 				return;
 			}
@@ -489,7 +495,7 @@ public class CompositeDisposable : ICompositeDisposable
 				disposable?.Dispose();
 				return;
 			}
-			
+
 			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
 			_asyncDisposablesWithToken.Add(disposable);
 		}
@@ -500,6 +506,13 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			if (_isDisposed)
+			{
+				firstDisposable?.Dispose();
+				secondDisposable?.Dispose();
+				return;
+			}
+
 			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
 			_asyncDisposablesWithToken.Add(firstDisposable);
 			_asyncDisposablesWithToken.Add(secondDisposable);
@@ -511,6 +524,14 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			if (_isDisposed)
+			{
+				firstDisposable?.Dispose();
+				secondDisposable?.Dispose();
+				thirdDisposable?.Dispose();
+				return;
+			}
+
 			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
 			_asyncDisposablesWithToken.Add(firstDisposable);
 			_asyncDisposablesWithToken.Add(secondDisposable);
@@ -523,9 +544,28 @@ public class CompositeDisposable : ICompositeDisposable
 	{
 		lock (_lock)
 		{
+			if (_isDisposed)
+			{
+				foreach (var disposable in disposables)
+				{
+					disposable?.Dispose();
+				}
+				return;
+			}
+
 			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
 			_asyncDisposablesWithToken.AddRange(disposables);
 		}
+	}
+
+	private static void DisposeAsyncBlocking(IAsyncDisposable asyncDisposable)
+	{
+		if (asyncDisposable is null)
+		{
+			return;
+		}
+
+		asyncDisposable.DisposeAsync().GetAwaiter().GetResult();
 	}
 }
 }

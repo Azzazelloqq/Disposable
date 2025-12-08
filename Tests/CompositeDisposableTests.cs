@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Disposable.Tests
 {
@@ -263,7 +265,7 @@ namespace Disposable.Tests
 
         /// <summary>
         /// Test that adding async disposable to already disposed CompositeDisposable
-        /// attempts to dispose it synchronously if it implements IDisposable
+        /// disposes it via async path
         /// </summary>
         [Test]
         public void AddAsyncDisposable_ToDisposedComposite_DisposesImmediately()
@@ -276,8 +278,96 @@ namespace Disposable.Tests
             _compositeDisposable.AddDisposable((IAsyncDisposable)mockAsyncDisposable);
             
             // Assert
-            Assert.IsTrue(mockAsyncDisposable.IsSyncDisposed, 
-                "Async disposable should be disposed synchronously when added to disposed composite");
+            Assert.IsTrue(mockAsyncDisposable.IsAsyncDisposed, 
+                "Async disposable should be disposed asynchronously when added to disposed composite");
+        }
+
+        /// <summary>
+        /// Test that adding pure async disposable to disposed CompositeDisposable triggers disposal
+        /// </summary>
+        [Test]
+        public void AddPureAsyncDisposable_ToDisposedComposite_DisposesImmediately()
+        {
+            // Arrange
+            _compositeDisposable.Dispose();
+            var mockAsyncDisposable = new MockAsyncDisposable();
+            
+            // Act
+            _compositeDisposable.AddDisposable((IAsyncDisposable)mockAsyncDisposable);
+            
+            // Assert
+            Assert.IsTrue(mockAsyncDisposable.IsDisposed, 
+                "Pure async disposable should be disposed when added after composite disposal");
+        }
+
+        /// <summary>
+        /// Test that DisposeAsync with continueOnCapturedContext sets disposed flag
+        /// </summary>
+        [Test]
+        public async Task DisposeAsync_WithContext_SetsDisposedFlag()
+        {
+            // Act
+            await _compositeDisposable.DisposeAsync(CancellationToken.None, true);
+            var mockDisposable = new MockDisposable();
+            
+            // Assert
+            _compositeDisposable.AddDisposable(mockDisposable);
+            Assert.IsTrue(mockDisposable.IsDisposed, "Disposable should be disposed immediately after async disposal");
+        }
+
+        /// <summary>
+        /// Test that DisposableBase overloads dispose immediately when composite already disposed
+        /// </summary>
+        [Test]
+        public void AddDisposable_DisposedComposite_DisposableBaseOverloadsDisposeItems()
+        {
+            // Arrange
+            _compositeDisposable.Dispose();
+            var first = new MockDisposableBase();
+            var second = new MockDisposableBase();
+            
+            // Act
+            _compositeDisposable.AddDisposable(first, second);
+            
+            // Assert
+            Assert.IsTrue(first.IsDisposed, "First disposable base should be disposed immediately");
+            Assert.IsTrue(second.IsDisposed, "Second disposable base should be disposed immediately");
+        }
+
+        /// <summary>
+        /// Test that DisposableBase enumerable overload disposes items when composite already disposed
+        /// </summary>
+        [Test]
+        public void AddDisposable_DisposedComposite_DisposableBaseEnumerableDisposesItems()
+        {
+            // Arrange
+            _compositeDisposable.Dispose();
+            var first = new MockDisposableBase();
+            var second = new MockDisposableBase();
+            var disposables = new List<DisposableBase> { first, second };
+            
+            // Act
+            _compositeDisposable.AddDisposable(disposables);
+            
+            // Assert
+            Assert.IsTrue(first.IsDisposed, "First disposable base should be disposed immediately");
+            Assert.IsTrue(second.IsDisposed, "Second disposable base should be disposed immediately");
+        }
+
+        /// <summary>
+        /// Test that synchronous Dispose logs error and disposes async resources
+        /// </summary>
+        [Test]
+        public void Dispose_WithAsyncDisposable_LogsErrorAndDisposes()
+        {
+            // Arrange
+            var mockAsyncDisposable = new MockAsyncDisposable();
+            _compositeDisposable.AddDisposable((IAsyncDisposable)mockAsyncDisposable);
+            
+            // Act & Assert
+            LogAssert.Expect(LogType.Error, "Have async disposables. Invoke async dispose with lock thread. Maybe need invoke System.Threading.Tasks.ValueTask.");
+            _compositeDisposable.Dispose();
+            Assert.IsTrue(mockAsyncDisposable.IsDisposed, "Async disposable should be disposed even from sync path");
         }
     }
 

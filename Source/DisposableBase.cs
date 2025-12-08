@@ -83,14 +83,15 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		{
 			DisposeManagedResources();
 			
-			// Cancel and dispose the cancellation token source if it was created
+			// Cancel the cancellation token source if it was created
 			if (_disposeCancellationTokenSource != null)
 			{
 				if (!_disposeCancellationTokenSource.IsCancellationRequested)
 				{
 					_disposeCancellationTokenSource.Cancel();
 				}
-				_disposeCancellationTokenSource.Dispose();
+				// Don't dispose immediately - tokens handed out to external code need to remain valid
+				// The GC will eventually clean this up
 			}
 		}
 
@@ -119,6 +120,16 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 
 		await DisposeAsyncCore(token, continueOnCapturedContext).ConfigureAwait(continueOnCapturedContext);
 
+		// Cancel the cancellation token source if it was created
+		if (_disposeCancellationTokenSource != null)
+		{
+			if (!_disposeCancellationTokenSource.IsCancellationRequested)
+			{
+				_disposeCancellationTokenSource.Cancel();
+			}
+			// Don't dispose immediately - tokens handed out to external code need to remain valid
+		}
+
 		DisposeUnmanagedResources();
 
 		GC.SuppressFinalize(this);
@@ -134,17 +145,6 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	protected virtual ValueTask DisposeAsyncCore(CancellationToken token, bool continueOnCapturedContext)
 	{
 		DisposeManagedResources();
-		
-		// Cancel and dispose the cancellation token source if it was created
-		if (_disposeCancellationTokenSource != null)
-		{
-			if (!_disposeCancellationTokenSource.IsCancellationRequested)
-			{
-				_disposeCancellationTokenSource.Cancel();
-			}
-			_disposeCancellationTokenSource.Dispose();
-		}
-		
 		return default;
 	}
 
@@ -174,12 +174,12 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		}
 		
 		// Create TaskCompletionSource for waiting
-		var tcs = new TaskCompletionSource<bool>();
+		var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 		
 		// Register callback to complete the task when disposed
-		disposeCancellationToken.Register(() => tcs.TrySetResult(true));
+		var disposeRegistration = disposeCancellationToken.Register(() => tcs.TrySetResult(true));
 		
-		return tcs.Task;
+		return AwaitWithRegistrations(tcs.Task, disposeRegistration);
 	}
 	
 	/// <summary>
@@ -195,15 +195,31 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		}
 		
 		// Create TaskCompletionSource for waiting
-		var tcs = new TaskCompletionSource<bool>();
+		var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 		
 		// Register callback to complete the task when disposed
-		using var disposeRegistration = disposeCancellationToken.Register(() => tcs.TrySetResult(true));
+		var disposeRegistration = disposeCancellationToken.Register(() => tcs.TrySetResult(true));
 		
 		// Register callback to cancel the task if external token is cancelled
-		using var cancelRegistration = cancellationToken.Register(() => tcs.TrySetCanceled());
+		var cancelRegistration = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
 		
-		await tcs.Task.ConfigureAwait(false);
+		await AwaitWithRegistrations(tcs.Task, disposeRegistration, cancelRegistration).ConfigureAwait(false);
+	}
+
+	private static async Task AwaitWithRegistrations(
+		Task awaitable,
+		CancellationTokenRegistration firstRegistration,
+		CancellationTokenRegistration secondRegistration = default)
+	{
+		try
+		{
+			await awaitable.ConfigureAwait(false);
+		}
+		finally
+		{
+			firstRegistration.Dispose();
+			secondRegistration.Dispose();
+		}
 	}
 }
 }

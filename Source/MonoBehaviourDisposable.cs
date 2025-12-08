@@ -26,11 +26,15 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	/// </summary>
 	protected CancellationToken disposeCancellationToken => _disposeCancellationTokenSource.Token;
 	
+#if UNITY_2022_2_OR_NEWER
+	private CancellationTokenSource _linkedDestroyCancellationTokenSource;
+#endif
+
 	/// <summary>
 	/// Gets the cancellation token that is triggered when the GameObject is destroyed.
 	/// This token is linked with Application.exitCancellationToken in Unity 2022.2+
 	/// </summary>
-	protected CancellationToken destroyCancellationToken
+	protected new CancellationToken destroyCancellationToken
 	{
 		get
 		{
@@ -38,10 +42,7 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 			// Link with Application.exitCancellationToken if available
 			if (Application.exitCancellationToken != CancellationToken.None)
 			{
-				using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-					_destroyCancellationTokenSource.Token,
-					Application.exitCancellationToken);
-				return linked.Token;
+				return EnsureLinkedDestroyCancellationToken();
 			}
 #endif
 			return _destroyCancellationTokenSource.Token;
@@ -70,13 +71,6 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 
 		Dispose(true);
 		GC.SuppressFinalize(this);
-
-		IsDisposed = true;
-
-		if (!IsDestroyed)
-		{
-			DestroyGameObjectSafe();
-		}
 	}
 	
 	/// <inheritdoc/>
@@ -101,7 +95,14 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 
 		await DisposeAsyncCore(token).ConfigureAwait(continueOnCapturedContext);
 
-		Dispose(false);
+		// Cancel the cancellation token sources
+		if (!_disposeCancellationTokenSource.IsCancellationRequested)
+		{
+			_disposeCancellationTokenSource.Cancel();
+		}
+		// Don't dispose immediately - tokens handed out to external code need to remain valid
+		
+		SignalDestroyCancellation();
 
 		IsDisposed = true;
 
@@ -136,23 +137,19 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 			{
 				_disposeCancellationTokenSource.Cancel();
 			}
-			_disposeCancellationTokenSource.Dispose();
+			// Don't dispose immediately - tokens handed out to external code need to remain valid
 			
-			if (!_destroyCancellationTokenSource.IsCancellationRequested)
-			{
-				_destroyCancellationTokenSource.Cancel();
-			}
-			_destroyCancellationTokenSource.Dispose();
+			SignalDestroyCancellation();
 		}
 
 		DisposeUnmanagedResources();
+
+		IsDisposed = true;
 
 		if (!IsDestroyed)
 		{
 			DestroyGameObjectSafe();
 		}
-
-		IsDisposed = true;
 	}
 
 	/// <summary>
@@ -161,19 +158,22 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	/// </summary>
 	private void OnDestroy()
 	{
-		// Signal destruction via cancellation token
-		if (!_destroyCancellationTokenSource.IsCancellationRequested)
+		SignalDestroyCancellation();
+
+		if (IsDestroyed)
 		{
-			_destroyCancellationTokenSource.Cancel();
+			return;
 		}
-		
+
+		IsDestroyed = true;
+
 		if (IsDisposed)
 		{
 			return;
 		}
 
 		Dispose(true);
-		IsDestroyed = true;
+		GC.SuppressFinalize(this);
 	}
 	
 	/// <summary>
@@ -182,10 +182,23 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	private void OnApplicationQuit()
 	{
 		// Signal application quit via destroy token
+		SignalDestroyCancellation();
+	}
+
+	private void SignalDestroyCancellation()
+	{
 		if (!_destroyCancellationTokenSource.IsCancellationRequested)
 		{
 			_destroyCancellationTokenSource.Cancel();
 		}
+
+#if UNITY_2022_2_OR_NEWER
+		if (_linkedDestroyCancellationTokenSource != null &&
+		    !_linkedDestroyCancellationTokenSource.IsCancellationRequested)
+		{
+			_linkedDestroyCancellationTokenSource.Cancel();
+		}
+#endif
 	}
 
 	/// <summary>
@@ -212,19 +225,8 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	/// <returns>A value task that represents the asynchronous dispose operation.</returns>
 	protected virtual ValueTask DisposeAsyncCore(CancellationToken token, bool continueOnCapturedContext = false)
 	{
-		// Cancel and dispose the cancellation token sources
-		if (!_disposeCancellationTokenSource.IsCancellationRequested)
-		{
-			_disposeCancellationTokenSource.Cancel();
-		}
-		_disposeCancellationTokenSource.Dispose();
-		
-		if (!_destroyCancellationTokenSource.IsCancellationRequested)
-		{
-			_destroyCancellationTokenSource.Cancel();
-		}
-		_destroyCancellationTokenSource.Dispose();
-		
+		DisposeManagedResources();
+		DisposeUnmanagedResources();
 		return default;
 	}
 
@@ -239,7 +241,18 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 		{
 			if (gameObject != null)
 			{
+#if UNITY_EDITOR
+				if (Application.isPlaying)
+				{
+					Destroy(gameObject);
+				}
+				else
+				{
+					DestroyImmediate(gameObject);
+				}
+#else
 				Destroy(gameObject);
+#endif
 			}
 		}
 		catch (UnityException ex) when (ex.Message.Contains("main thread"))
@@ -281,12 +294,12 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 		}
 		
 		// Create TaskCompletionSource for waiting
-		var tcs = new TaskCompletionSource<bool>();
+		var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 		
 		// Register callback to complete the task when disposed
-		disposeCancellationToken.Register(() => tcs.TrySetResult(true));
+		var disposeRegistration = disposeCancellationToken.Register(() => tcs.TrySetResult(true));
 		
-		return tcs.Task;
+		return AwaitWithRegistrations(tcs.Task, disposeRegistration);
 	}
 	
 	/// <summary>
@@ -302,15 +315,15 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 		}
 		
 		// Create TaskCompletionSource for waiting
-		var tcs = new TaskCompletionSource<bool>();
+		var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 		
 		// Register callback to complete the task when disposed
-		using var disposeRegistration = disposeCancellationToken.Register(() => tcs.TrySetResult(true));
+		var disposeRegistration = disposeCancellationToken.Register(() => tcs.TrySetResult(true));
 		
 		// Register callback to cancel the task if external token is cancelled
-		using var cancelRegistration = cancellationToken.Register(() => tcs.TrySetCanceled());
+		var cancelRegistration = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
 		
-		await tcs.Task.ConfigureAwait(false);
+		await AwaitWithRegistrations(tcs.Task, disposeRegistration, cancelRegistration).ConfigureAwait(false);
 	}
 	
 	/// <summary>
@@ -324,13 +337,50 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 			return Task.CompletedTask;
 		}
 		
+		// Check if token is already cancelled
+		if (destroyCancellationToken.IsCancellationRequested)
+		{
+			return Task.CompletedTask;
+		}
+		
 		// Create TaskCompletionSource for waiting
-		var tcs = new TaskCompletionSource<bool>();
+		var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 		
 		// Register callback to complete the task when destroyed
-		destroyCancellationToken.Register(() => tcs.TrySetResult(true));
+		// If token is cancelled immediately after registration, callback will fire
+		var destroyRegistration = destroyCancellationToken.Register(() => tcs.TrySetResult(true));
 		
-		return tcs.Task;
+		return AwaitWithRegistrations(tcs.Task, destroyRegistration);
+	}
+
+#if UNITY_2022_2_OR_NEWER
+	private CancellationToken EnsureLinkedDestroyCancellationToken()
+	{
+		if (_linkedDestroyCancellationTokenSource == null)
+		{
+			_linkedDestroyCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
+				_destroyCancellationTokenSource.Token,
+				Application.exitCancellationToken);
+		}
+
+		return _linkedDestroyCancellationTokenSource.Token;
+	}
+#endif
+
+	private static async Task AwaitWithRegistrations(
+		Task awaitable,
+		CancellationTokenRegistration firstRegistration,
+		CancellationTokenRegistration secondRegistration = default)
+	{
+		try
+		{
+			await awaitable.ConfigureAwait(false);
+		}
+		finally
+		{
+			firstRegistration.Dispose();
+			secondRegistration.Dispose();
+		}
 	}
 }
 }

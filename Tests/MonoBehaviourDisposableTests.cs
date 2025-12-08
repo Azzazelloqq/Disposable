@@ -234,6 +234,22 @@ namespace Disposable.Tests
         }
         
         /// <summary>
+        /// Test that destroyCancellationToken supports registrations without throwing
+        /// </summary>
+        [Test]
+        public void DestroyCancellationToken_Register_DoesNotThrow()
+        {
+            // Arrange
+            var token = _testComponent.GetDestroyCancellationToken();
+            
+            // Act & Assert
+            Assert.DoesNotThrow(() =>
+            {
+                using var registration = token.Register(() => { });
+            });
+        }
+        
+        /// <summary>
         /// Test that destroyCancellationToken is cancelled after GameObject destruction
         /// </summary>
         [Test]
