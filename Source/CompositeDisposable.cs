@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -401,8 +402,7 @@ public class CompositeDisposable : ICompositeDisposable
 				}
 				return;
 			}
-			
-			_disposables ??= new List<IDisposable>(_disposablesCapacity);
+			_disposables = EnsureListForEnumerable(_disposables, disposables, _disposablesCapacity);
 			_disposables.AddRange(disposables);
 		}
 	}
@@ -478,8 +478,7 @@ public class CompositeDisposable : ICompositeDisposable
 				}
 				return;
 			}
-			
-			_asyncDisposables ??= new List<IAsyncDisposable>(_disposablesCapacity);
+			_asyncDisposables = EnsureListForEnumerable(_asyncDisposables, disposables, _disposablesCapacity);
 			_asyncDisposables.AddRange(disposables);
 		}
 	}
@@ -552,8 +551,7 @@ public class CompositeDisposable : ICompositeDisposable
 				}
 				return;
 			}
-
-			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
+			_asyncDisposablesWithToken = EnsureListForEnumerable(_asyncDisposablesWithToken, disposables, _disposablesCapacity);
 			_asyncDisposablesWithToken.AddRange(disposables);
 		}
 	}
@@ -566,6 +564,29 @@ public class CompositeDisposable : ICompositeDisposable
 		}
 
 		asyncDisposable.DisposeAsync().GetAwaiter().GetResult();
+	}
+
+	private static List<T> EnsureListForEnumerable<T>(
+		List<T> current,
+		IEnumerable<T> items,
+		int defaultCapacity)
+	{
+		if (current != null)
+		{
+			return current;
+		}
+
+		if (items is ICollection<T> typedCollection)
+		{
+			return new List<T>(Math.Max(defaultCapacity, typedCollection.Count));
+		}
+
+		if (items is ICollection untypedCollection)
+		{
+			return new List<T>(Math.Max(defaultCapacity, untypedCollection.Count));
+		}
+
+		return new List<T>(defaultCapacity);
 	}
 }
 }

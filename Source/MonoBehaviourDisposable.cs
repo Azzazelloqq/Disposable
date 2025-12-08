@@ -1,4 +1,5 @@
-﻿using System;
+#if UNITY_5_3_OR_NEWER || UNITY_INCLUDE_TESTS
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -160,18 +161,13 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	{
 		SignalDestroyCancellation();
 
-		if (IsDestroyed)
+		if (IsDisposed)
 		{
+			IsDestroyed = true;
 			return;
 		}
 
 		IsDestroyed = true;
-
-		if (IsDisposed)
-		{
-			return;
-		}
-
 		Dispose(true);
 		GC.SuppressFinalize(this);
 	}
@@ -384,3 +380,4 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	}
 }
 }
+#endif
