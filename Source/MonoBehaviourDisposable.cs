@@ -77,7 +77,7 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	/// <inheritdoc/>
 	public async ValueTask DisposeAsync()
 	{
-		await DisposeAsync(CancellationToken.None).ConfigureAwait(false);
+		await DisposeAsync(CancellationToken.None).ConfigureAwait(true);
 		GC.SuppressFinalize(this);
 	}
 
