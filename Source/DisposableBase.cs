@@ -211,50 +211,53 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// Adds a disposable resource that should be cleaned up with this instance.
 	/// </summary>
 	/// <param name="disposable">Disposable resource to register.</param>
-	protected void AddDisposable<T>(T disposable) where T : IDisposable
+	/// <returns>The disposable resource that was added.</returns>
+	protected T AddDisposable<T>(T disposable) where T : IDisposable
 	{
 		if (disposable == null)
 		{
-			return;
+			return disposable;
 		}
 
 		if (IsDisposed)
 		{
 			disposable.Dispose();
-			return;
+			return disposable;
 		}
 
-		EnsureCompositeDisposable().AddDisposable(disposable);
+		return EnsureCompositeDisposable().AddDisposable(disposable);
 	}
 
 	/// <summary>
 	/// Adds two disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable<T>(T firstDisposable, T secondDisposable) where T : IDisposable
+	/// <returns>A tuple containing both disposable resources that were added.</returns>
+	protected (T firstDisposable, T secondDisposable) AddDisposable<T>(T firstDisposable, T secondDisposable) where T : IDisposable
 	{
 		if (firstDisposable == null && secondDisposable == null)
 		{
-			return;
+			return (firstDisposable, secondDisposable);
 		}
 
 		if (IsDisposed)
 		{
 			firstDisposable?.Dispose();
 			secondDisposable?.Dispose();
-			return;
+			return (firstDisposable, secondDisposable);
 		}
 
-		EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable);
+		return EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable);
 	}
 
 	/// <summary>
 	/// Adds three disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IDisposable
+	/// <returns>A tuple containing all three disposable resources that were added.</returns>
+	protected (T firstDisposable, T secondDisposable, T thirdDisposable) AddDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IDisposable
 	{
 		if (firstDisposable == null && secondDisposable == null && thirdDisposable == null)
 		{
-			return;
+			return (firstDisposable, secondDisposable, thirdDisposable);
 		}
 
 		if (IsDisposed)
@@ -262,20 +265,21 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 			firstDisposable?.Dispose();
 			secondDisposable?.Dispose();
 			thirdDisposable?.Dispose();
-			return;
+			return (firstDisposable, secondDisposable, thirdDisposable);
 		}
 
-		EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable, thirdDisposable);
+		return EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable, thirdDisposable);
 	}
 
 	/// <summary>
 	/// Adds a collection of disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable<T>(IEnumerable<T> disposables) where T : IDisposable
+	/// <returns>The collection of disposables that were added.</returns>
+	protected IEnumerable<T> AddDisposable<T>(IEnumerable<T> disposables) where T : IDisposable
 	{
 		if (disposables == null)
 		{
-			return;
+			return disposables;
 		}
 
 		if (IsDisposed)
@@ -285,62 +289,65 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 				disposable?.Dispose();
 			}
 
-			return;
+			return disposables;
 		}
 
-		EnsureCompositeDisposable().AddDisposable(disposables);
+		return EnsureCompositeDisposable().AddDisposable(disposables);
 	}
 
 	/// <summary>
 	/// Adds an async disposable resource that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddAsyncDisposable<T>(T disposable) where T : IAsyncDisposable
+	/// <returns>The async disposable resource that was added.</returns>
+	protected T AddAsyncDisposable<T>(T disposable) where T : IAsyncDisposable
 	{
 		if (disposable == null)
 		{
-			return;
+			return disposable;
 		}
 
 		if (IsDisposed)
 		{
 			DisposeAsyncBlocking(disposable);
-			return;
+			return disposable;
 		}
 
-		EnsureCompositeDisposable().AddAsyncDisposable(disposable);
+		return EnsureCompositeDisposable().AddAsyncDisposable(disposable);
 	}
 
 	/// <summary>
 	/// Adds two async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddAsyncDisposable<T>(T firstDisposable, T secondDisposable) where T : IAsyncDisposable
+	/// <returns>A tuple containing both async disposable resources that were added.</returns>
+	protected (T firstDisposable, T secondDisposable) AddAsyncDisposable<T>(T firstDisposable, T secondDisposable) where T : IAsyncDisposable
 	{
 		if (firstDisposable == null && secondDisposable == null)
 		{
-			return;
+			return (firstDisposable, secondDisposable);
 		}
 
 		if (IsDisposed)
 		{
 			DisposeAsyncBlocking(firstDisposable);
 			DisposeAsyncBlocking(secondDisposable);
-			return;
+			return (firstDisposable, secondDisposable);
 		}
 
-		EnsureCompositeDisposable().AddAsyncDisposable(firstDisposable, secondDisposable);
+		return EnsureCompositeDisposable().AddAsyncDisposable(firstDisposable, secondDisposable);
 	}
 
 	/// <summary>
 	/// Adds three async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddAsyncDisposable<T>(
+	/// <returns>A tuple containing all three async disposable resources that were added.</returns>
+	protected (T firstDisposable, T secondDisposable, T thirdDisposable) AddAsyncDisposable<T>(
 		T firstDisposable,
 		T secondDisposable,
 		T thirdDisposable) where T : IAsyncDisposable
 	{
 		if (firstDisposable == null && secondDisposable == null && thirdDisposable == null)
 		{
-			return;
+			return (firstDisposable, secondDisposable, thirdDisposable);
 		}
 
 		if (IsDisposed)
@@ -348,20 +355,21 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 			DisposeAsyncBlocking(firstDisposable);
 			DisposeAsyncBlocking(secondDisposable);
 			DisposeAsyncBlocking(thirdDisposable);
-			return;
+			return (firstDisposable, secondDisposable, thirdDisposable);
 		}
 
-		EnsureCompositeDisposable().AddAsyncDisposable(firstDisposable, secondDisposable, thirdDisposable);
+		return EnsureCompositeDisposable().AddAsyncDisposable(firstDisposable, secondDisposable, thirdDisposable);
 	}
 
 	/// <summary>
 	/// Adds a collection of async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddAsyncDisposable<T>(IEnumerable<T> disposables) where T : IAsyncDisposable
+	/// <returns>The collection of async disposables that were added.</returns>
+	protected IEnumerable<T> AddAsyncDisposable<T>(IEnumerable<T> disposables) where T : IAsyncDisposable
 	{
 		if (disposables == null)
 		{
-			return;
+			return disposables;
 		}
 
 		if (IsDisposed)
@@ -371,10 +379,10 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 				DisposeAsyncBlocking(disposable);
 			}
 
-			return;
+			return disposables;
 		}
 
-		EnsureCompositeDisposable().AddAsyncDisposable(disposables);
+		return EnsureCompositeDisposable().AddAsyncDisposable(disposables);
 	}
 
 	/// <summary>

@@ -332,7 +332,7 @@ public class CompositeDisposable : ICompositeDisposable
 
 
 	/// <inheritdoc/>
-	public void AddDisposable<T>(T disposable) where T : IDisposable
+	public T AddDisposable<T>(T disposable) where T : IDisposable
 	{
 		lock (_lock)
 		{
@@ -340,16 +340,18 @@ public class CompositeDisposable : ICompositeDisposable
 			if (_isDisposed)
 			{
 				disposable?.Dispose();
-				return;
+				return disposable;
 			}
 			
 			_disposables ??= new List<IDisposable>(_disposablesCapacity);
 			_disposables.Add(disposable);
 		}
+		
+		return disposable;
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable<T>(T firstDisposable, T secondDisposable) where T : IDisposable
+	public (T firstDisposable, T secondDisposable) AddDisposable<T>(T firstDisposable, T secondDisposable) where T : IDisposable
 	{
 		lock (_lock)
 		{
@@ -358,17 +360,19 @@ public class CompositeDisposable : ICompositeDisposable
 			{
 				firstDisposable?.Dispose();
 				secondDisposable?.Dispose();
-				return;
+				return (firstDisposable, secondDisposable);
 			}
 			
 			_disposables ??= new List<IDisposable>(_disposablesCapacity);
 			_disposables.Add(firstDisposable);
 			_disposables.Add(secondDisposable);
 		}
+		
+		return (firstDisposable, secondDisposable);
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IDisposable
+	public (T firstDisposable, T secondDisposable, T thirdDisposable) AddDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IDisposable
 	{
 		lock (_lock)
 		{
@@ -378,7 +382,7 @@ public class CompositeDisposable : ICompositeDisposable
 				firstDisposable?.Dispose();
 				secondDisposable?.Dispose();
 				thirdDisposable?.Dispose();
-				return;
+				return (firstDisposable, secondDisposable, thirdDisposable);
 			}
 			
 			_disposables ??= new List<IDisposable>(_disposablesCapacity);
@@ -386,10 +390,12 @@ public class CompositeDisposable : ICompositeDisposable
 			_disposables.Add(secondDisposable);
 			_disposables.Add(thirdDisposable);
 		}
+		
+		return (firstDisposable, secondDisposable, thirdDisposable);
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable<T>(IEnumerable<T> disposables) where T : IDisposable
+	public IEnumerable<T> AddDisposable<T>(IEnumerable<T> disposables) where T : IDisposable
 	{
 		lock (_lock)
 		{
@@ -400,7 +406,7 @@ public class CompositeDisposable : ICompositeDisposable
 				{
 					disposable?.Dispose();
 				}
-				return;
+				return disposables;
 			}
 			
 			_disposables ??= new List<IDisposable>(GetCapacityForEnumerable(disposables, _disposablesCapacity));
@@ -409,10 +415,12 @@ public class CompositeDisposable : ICompositeDisposable
 				_disposables.Add(disposable);
 			}
 		}
+		
+		return disposables;
 	}
 
 	/// <inheritdoc/>
-	public void AddAsyncDisposable<T>(T disposable) where T : IAsyncDisposable
+	public T AddAsyncDisposable<T>(T disposable) where T : IAsyncDisposable
 	{
 		lock (_lock)
 		{
@@ -420,16 +428,18 @@ public class CompositeDisposable : ICompositeDisposable
 			if (_isDisposed)
 			{
 				DisposeAsyncBlocking(disposable);
-				return;
+				return disposable;
 			}
 			
 			_asyncDisposables ??= new List<IAsyncDisposable>(_disposablesCapacity);
 			_asyncDisposables.Add(disposable);
 		}
+		
+		return disposable;
 	}
 
 	/// <inheritdoc/>
-	public void AddAsyncDisposable<T>(T firstDisposable, T secondDisposable) where T : IAsyncDisposable
+	public (T firstDisposable, T secondDisposable) AddAsyncDisposable<T>(T firstDisposable, T secondDisposable) where T : IAsyncDisposable
 	{
 		lock (_lock)
 		{
@@ -438,17 +448,19 @@ public class CompositeDisposable : ICompositeDisposable
 			{
 				DisposeAsyncBlocking(firstDisposable);
 				DisposeAsyncBlocking(secondDisposable);
-				return;
+				return (firstDisposable, secondDisposable);
 			}
 			
 			_asyncDisposables ??= new List<IAsyncDisposable>(_disposablesCapacity);
 			_asyncDisposables.Add(firstDisposable);
 			_asyncDisposables.Add(secondDisposable);
 		}
+		
+		return (firstDisposable, secondDisposable);
 	}
 
 	/// <inheritdoc/>
-	public void AddAsyncDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IAsyncDisposable
+	public (T firstDisposable, T secondDisposable, T thirdDisposable) AddAsyncDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IAsyncDisposable
 	{
 		lock (_lock)
 		{
@@ -458,7 +470,7 @@ public class CompositeDisposable : ICompositeDisposable
 				DisposeAsyncBlocking(firstDisposable);
 				DisposeAsyncBlocking(secondDisposable);
 				DisposeAsyncBlocking(thirdDisposable);
-				return;
+				return (firstDisposable, secondDisposable, thirdDisposable);
 			}
 			
 			_asyncDisposables ??= new List<IAsyncDisposable>(_disposablesCapacity);
@@ -466,10 +478,12 @@ public class CompositeDisposable : ICompositeDisposable
 			_asyncDisposables.Add(secondDisposable);
 			_asyncDisposables.Add(thirdDisposable);
 		}
+		
+		return (firstDisposable, secondDisposable, thirdDisposable);
 	}
 
 	/// <inheritdoc/>
-	public void AddAsyncDisposable<T>(IEnumerable<T> disposables) where T : IAsyncDisposable
+	public IEnumerable<T> AddAsyncDisposable<T>(IEnumerable<T> disposables) where T : IAsyncDisposable
 	{
 		lock (_lock)
 		{
@@ -480,7 +494,7 @@ public class CompositeDisposable : ICompositeDisposable
 				{
 					DisposeAsyncBlocking(disposable);
 				}
-				return;
+				return disposables;
 			}
 			
 			_asyncDisposables ??= new List<IAsyncDisposable>(GetCapacityForEnumerable(disposables, _disposablesCapacity));
@@ -489,6 +503,8 @@ public class CompositeDisposable : ICompositeDisposable
 				_asyncDisposables.Add(disposable);
 			}
 		}
+		
+		return disposables;
 	}
 
 	private static void DisposeAsyncBlocking(IAsyncDisposable asyncDisposable)
