@@ -294,7 +294,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <summary>
 	/// Adds an async disposable resource that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable(IAsyncDisposable disposable)
+	protected void AddAsyncDisposable(IAsyncDisposable disposable)
 	{
 		if (disposable == null)
 		{
@@ -307,13 +307,13 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 			return;
 		}
 
-		EnsureCompositeDisposable().AddDisposable(disposable);
+		EnsureCompositeDisposable().AddAsyncDisposable(disposable);
 	}
 
 	/// <summary>
 	/// Adds two async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable)
+	protected void AddAsyncDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable)
 	{
 		if (firstDisposable == null && secondDisposable == null)
 		{
@@ -327,13 +327,13 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 			return;
 		}
 
-		EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable);
+		EnsureCompositeDisposable().AddAsyncDisposable(firstDisposable, secondDisposable);
 	}
 
 	/// <summary>
 	/// Adds three async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable(
+	protected void AddAsyncDisposable(
 		IAsyncDisposable firstDisposable,
 		IAsyncDisposable secondDisposable,
 		IAsyncDisposable thirdDisposable)
@@ -351,13 +351,13 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 			return;
 		}
 
-		EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable, thirdDisposable);
+		EnsureCompositeDisposable().AddAsyncDisposable(firstDisposable, secondDisposable, thirdDisposable);
 	}
 
 	/// <summary>
 	/// Adds a collection of async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable(IEnumerable<IAsyncDisposable> disposables)
+	protected void AddAsyncDisposable(IEnumerable<IAsyncDisposable> disposables)
 	{
 		if (disposables == null)
 		{
@@ -374,7 +374,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 			return;
 		}
 
-		EnsureCompositeDisposable().AddDisposable(disposables);
+		EnsureCompositeDisposable().AddAsyncDisposable(disposables);
 	}
 
 	/// <summary>

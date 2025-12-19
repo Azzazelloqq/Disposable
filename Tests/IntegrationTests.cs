@@ -44,7 +44,7 @@ namespace Disposable.Tests
             
             // Act
             composite.AddDisposable(syncDisposables);
-            composite.AddDisposable(asyncDisposables);
+            composite.AddAsyncDisposable(asyncDisposables);
             composite.AddDisposable(disposableBases);
             
             await composite.DisposeAsync();
@@ -202,16 +202,16 @@ namespace Disposable.Tests
             var childComposite1 = new CompositeDisposable();
             var childComposite2 = new CompositeDisposable();
             
-            childComposite1.AddDisposable(new MockAsyncDisposable());
-            childComposite2.AddDisposable(new MockAsyncDisposable());
+            childComposite1.AddAsyncDisposable(new MockAsyncDisposable());
+            childComposite2.AddAsyncDisposable(new MockAsyncDisposable());
             
-            parentComposite.AddDisposable((IDisposable)childComposite1, childComposite2);
+            // Intentionally add as synchronous disposables. During parent DisposeAsync, these will be disposed via Dispose(),
+            // which triggers the expected error log because each child composite contains async disposables.
+            parentComposite.AddDisposable(childComposite1, childComposite2);
             
             using var cts = new CancellationTokenSource();
             
             // Expect TWO error logs when disposing child composites with async disposables synchronously
-            // Due to method overload resolution, AddDisposable(IDisposable, IDisposable) is called
-            // Both childComposite1 (cast to IDisposable) and childComposite2 are added to _disposables list
             // During DisposeAsync, both are disposed via synchronous Dispose() method → both log errors
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Have async disposables\. Invoke async dispose with lock thread\. Maybe need invoke.*"));
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Have async disposables\. Invoke async dispose with lock thread\. Maybe need invoke.*"));
@@ -235,7 +235,7 @@ namespace Disposable.Tests
             var composite2 = new CompositeDisposable();
             
             composite1.AddDisposable(new MockDisposable(), new MockDisposable());
-            composite2.AddDisposable(new MockAsyncDisposable(), new MockAsyncDisposable());
+            composite2.AddAsyncDisposable(new MockAsyncDisposable(), new MockAsyncDisposable());
             
             // Act
             composite1.Dispose(); // Synchronous disposal
@@ -270,7 +270,7 @@ namespace Disposable.Tests
             var physicsWorld = new TestAsyncDisposableBase(); // Physics world
             
             // Act
-            gameManager.AddDisposable(networkConnection);
+            gameManager.AddAsyncDisposable(networkConnection);
             gameManager.AddDisposable(audioSources);
             gameManager.AddDisposable(textures);
             gameManager.AddDisposable(physicsWorld);

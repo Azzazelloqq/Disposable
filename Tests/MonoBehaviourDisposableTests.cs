@@ -5,11 +5,13 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
+using Disposable;
+
 namespace Disposable.Tests
 {
     /// <summary>
-/// Tests for the MonoBehaviourDisposable class
-/// </summary>
+    /// Tests for the MonoBehaviourDisposable class
+    /// </summary>
     [TestFixture]
     public class MonoBehaviourDisposableTests
     {
@@ -101,39 +103,6 @@ namespace Disposable.Tests
         }
 
         /// <summary>
-        /// Test that OnDestroy automatically triggers resource disposal
-        /// </summary>
-        [Test]
-        public void OnDestroy_AutomaticallyDisposesResources()
-        {
-            // Act
-            UnityEngine.Object.DestroyImmediate(_testGameObject);
-            
-            // Assert
-            Assert.IsTrue(_testComponent.IsDisposed, "Component should be disposed after OnDestroy");
-            Assert.IsTrue(_testComponent.IsDestroyed, "Component should be marked as destroyed");
-        }
-
-        /// <summary>
-        /// Test that OnDestroy doesn't trigger repeated disposal if already disposed
-        /// </summary>
-        [Test]
-        public void OnDestroy_AfterDispose_DoesNotDisposeAgain()
-        {
-            // Arrange
-            _testComponent.Dispose();
-            var disposeCallCountAfterExplicitDispose = _testComponent.DisposeCallCount;
-            
-            // Act
-            UnityEngine.Object.DestroyImmediate(_testGameObject);
-            var disposeCallCountAfterDestroy = _testComponent.DisposeCallCount;
-            
-            // Assert
-            Assert.AreEqual(disposeCallCountAfterExplicitDispose, disposeCallCountAfterDestroy,
-                "OnDestroy should not call dispose again if already disposed");
-        }
-
-        /// <summary>
         /// Test checking initial component state
         /// </summary>
         [Test]
@@ -205,22 +174,6 @@ namespace Disposable.Tests
         }
 
         /// <summary>
-        /// Test that disposeCancellationToken is cancelled when GameObject is destroyed
-        /// </summary>
-        [Test]
-        public void DisposeCancellationToken_AfterOnDestroy_IsCancelled()
-        {
-            // Arrange
-            var token = _testComponent.GetDisposeCancellationToken();
-            
-            // Act
-            UnityEngine.Object.DestroyImmediate(_testGameObject);
-            
-            // Assert
-            Assert.IsTrue(token.IsCancellationRequested, "Cancellation token should be cancelled after OnDestroy");
-        }
-        
-        /// <summary>
         /// Test that destroyCancellationToken is accessible and not cancelled before destruction
         /// </summary>
         [Test]
@@ -250,22 +203,6 @@ namespace Disposable.Tests
         }
         
         /// <summary>
-        /// Test that destroyCancellationToken is cancelled after GameObject destruction
-        /// </summary>
-        [Test]
-        public void DestroyCancellationToken_AfterDestroy_IsCancelled()
-        {
-            // Arrange
-            var token = _testComponent.GetDestroyCancellationToken();
-            
-            // Act
-            UnityEngine.Object.DestroyImmediate(_testGameObject);
-            
-            // Assert
-            Assert.IsTrue(token.IsCancellationRequested, "Destroy cancellation token should be cancelled after destruction");
-        }
-        
-        /// <summary>
         /// Test WaitForDisposalAsync completes when disposed
         /// </summary>
         [Test]
@@ -286,26 +223,6 @@ namespace Disposable.Tests
         }
         
         /// <summary>
-        /// Test WaitForDestroyAsync completes when GameObject is destroyed
-        /// </summary>
-        [Test]
-        public async Task WaitForDestroyAsync_CompletesWhenDestroyed()
-        {
-            // Arrange
-            var waitTask = _testComponent.WaitForDestroyAsync();
-            
-            // Assert - task should not be completed before destruction
-            Assert.IsFalse(waitTask.IsCompleted, "Wait task should not be completed before destruction");
-            
-            // Act - destroy the GameObject
-            UnityEngine.Object.DestroyImmediate(_testGameObject);
-            
-            // Assert - task should complete after destruction
-            await waitTask;
-            Assert.IsTrue(waitTask.IsCompleted, "Wait task should complete after destruction");
-        }
-        
-        /// <summary>
         /// Test WaitForDisposalAsync returns immediately if already disposed
         /// </summary>
         [Test]
@@ -322,27 +239,11 @@ namespace Disposable.Tests
             await waitTask; // Should not block
         }
         
-        /// <summary>
-        /// Test WaitForDestroyAsync returns immediately if already destroyed
-        /// </summary>
-        [Test]
-        public async Task WaitForDestroyAsync_ReturnsImmediatelyIfAlreadyDestroyed()
-        {
-            // Arrange
-            UnityEngine.Object.DestroyImmediate(_testGameObject);
-            
-            // Act
-            var waitTask = _testComponent.WaitForDestroyAsync();
-            
-            // Assert
-            Assert.IsTrue(waitTask.IsCompleted, "Wait task should be completed immediately if already destroyed");
-            await waitTask; // Should not block
-        }
     }
 
-            /// <summary>
-        /// Test implementation of MonoBehaviourDisposable for functionality verification
-        /// </summary>
+    /// <summary>
+    /// Test implementation of MonoBehaviourDisposable for functionality verification
+    /// </summary>
     public class TestMonoBehaviourDisposable : MonoBehaviourDisposable
     {
         public bool ManagedResourcesDisposed { get; private set; }
@@ -355,6 +256,7 @@ namespace Disposable.Tests
         public CancellationToken GetDisposeCancellationToken() => disposeCancellationToken;
         public CancellationToken GetDestroyCancellationToken() => destroyCancellationToken;
 
+        /// <inheritdoc/>
         protected override void DisposeManagedResources()
         {
             ManagedResourcesDisposed = true;

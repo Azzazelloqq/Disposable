@@ -23,7 +23,7 @@
 public interface ICompositeDisposable : IDisposable, IAsyncDisposable
 {
     void AddDisposable(IDisposable disposable);
-    void AddDisposable(IAsyncDisposable disposable);
+    void AddAsyncDisposable(IAsyncDisposable disposable);
     void AddDisposable(DisposableBase disposable);
     ValueTask DisposeAsync(CancellationToken token, bool continueOnCapturedContext = false);
 }
@@ -45,6 +45,7 @@ var composite = new CompositeDisposable(capacity: 20);
 composite.AddDisposable(fileStream);
 composite.AddDisposable(httpClient, database);
 composite.AddDisposable(new[] { resource1, resource2, resource3 });
+composite.AddAsyncDisposable(networkClient);
 
 // Синхронное освобождение всех ресурсов
 composite.Dispose();

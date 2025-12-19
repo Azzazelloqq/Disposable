@@ -150,7 +150,7 @@ namespace Disposable.Tests
             var apiService = new MockAsyncDisposable();
             var cacheService = new MockAsyncDisposable();
             
-            _disposables.AddDisposable(databaseService, apiService, cacheService);
+            _disposables.AddAsyncDisposable(databaseService, apiService, cacheService);
             
             await Task.Delay(10); // Initialization simulation
         }
@@ -259,7 +259,7 @@ namespace Disposable.Tests
 
         public void AddNetworkComponent(IAsyncDisposable networkComponent)
         {
-            _disposables.AddDisposable(networkComponent);
+            _disposables.AddAsyncDisposable(networkComponent);
         }
 
         public void Dispose()

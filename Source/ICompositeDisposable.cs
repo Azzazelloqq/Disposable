@@ -41,14 +41,14 @@ public interface ICompositeDisposable : IDisposable, IAsyncDisposable
 	/// Adds an async disposable resource to the composite.
 	/// </summary>
 	/// <param name="disposable">The async disposable resource to add.</param>
-	public void AddDisposable(IAsyncDisposable disposable);
+	public void AddAsyncDisposable(IAsyncDisposable disposable);
 	
 	/// <summary>
 	/// Adds two async disposable resources to the composite.
 	/// </summary>
 	/// <param name="firstDisposable">The first async disposable resource to add.</param>
 	/// <param name="secondDisposable">The second async disposable resource to add.</param>
-	public void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable);
+	public void AddAsyncDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable);
 	
 	/// <summary>
 	/// Adds three async disposable resources to the composite.
@@ -56,13 +56,13 @@ public interface ICompositeDisposable : IDisposable, IAsyncDisposable
 	/// <param name="firstDisposable">The first async disposable resource to add.</param>
 	/// <param name="secondDisposable">The second async disposable resource to add.</param>
 	/// <param name="thirdDisposable">The third async disposable resource to add.</param>
-	public void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable, IAsyncDisposable thirdDisposable);
+	public void AddAsyncDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable, IAsyncDisposable thirdDisposable);
 	
 	/// <summary>
 	/// Adds a collection of async disposable resources to the composite.
 	/// </summary>
 	/// <param name="disposables">The collection of async disposables to add.</param>
-	public void AddDisposable(IEnumerable<IAsyncDisposable> disposables);
+	public void AddAsyncDisposable(IEnumerable<IAsyncDisposable> disposables);
 	
 	/// <summary>
 	/// Asynchronously disposes all resources with cancellation support and context configuration.

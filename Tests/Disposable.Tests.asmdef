@@ -3,7 +3,8 @@
     "rootNamespace": "Disposable.Tests",
     "references": [
         "Disposable",
-        "UnityEngine.TestRunner"
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
     ],
     "includePlatforms": [
         "Editor"

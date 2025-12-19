@@ -21,32 +21,29 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	/// The cancellation token source that is used to signal destruction of the GameObject.
 	/// </summary>
 	protected readonly CancellationTokenSource _destroyCancellationTokenSource = new();
-	
+
 	/// <summary>
 	/// Gets the cancellation token that is triggered when the object is disposed.
 	/// </summary>
 	protected CancellationToken disposeCancellationToken => _disposeCancellationTokenSource.Token;
-	
+
 #if UNITY_2022_2_OR_NEWER
 	private CancellationTokenSource _linkedDestroyCancellationTokenSource;
 #endif
 
 	/// <summary>
 	/// Gets the cancellation token that is triggered when the GameObject is destroyed.
-	/// This token is linked with Application.exitCancellationToken in Unity 2022.2+
+	/// This token is linked with base.destroyCancellationToken and Application.exitCancellationToken in Unity 2022.2+
 	/// </summary>
 	protected new CancellationToken destroyCancellationToken
 	{
 		get
 		{
 #if UNITY_2022_2_OR_NEWER
-			// Link with Application.exitCancellationToken if available
-			if (Application.exitCancellationToken != CancellationToken.None)
-			{
-				return EnsureLinkedDestroyCancellationToken();
-			}
-#endif
+			return EnsureLinkedDestroyCancellationToken();
+#else
 			return _destroyCancellationTokenSource.Token;
+#endif
 		}
 	}
 	
@@ -156,10 +153,11 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	/// <summary>
 	/// Unity callback called when the MonoBehaviour is destroyed.
 	/// Automatically disposes all managed resources.
+	/// If you override this method, you must call base.OnDestroy() to ensure resources are disposed.
 	/// </summary>
-	private void OnDestroy()
+	protected virtual void OnDestroy()
 	{
-		SignalDestroyCancellation();
+		 SignalDestroyCancellation();
 
 		if (IsDisposed)
 		{
@@ -169,13 +167,13 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 
 		IsDestroyed = true;
 		Dispose(true);
-		GC.SuppressFinalize(this);
+		// GC.SuppressFinalize(this); // Remove this call in OnDestroy as per Unity best practices for MonoBehaviours
 	}
-	
+
 	/// <summary>
 	/// Unity callback called when the application is about to quit.
 	/// </summary>
-	private void OnApplicationQuit()
+	protected virtual void OnApplicationQuit()
 	{
 		// Signal application quit via destroy token
 		SignalDestroyCancellation();
@@ -354,11 +352,16 @@ public class MonoBehaviourDisposable : MonoBehaviour, IDisposable, IAsyncDisposa
 	{
 		if (_linkedDestroyCancellationTokenSource == null)
 		{
-			_linkedDestroyCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
-				_destroyCancellationTokenSource.Token,
-				Application.exitCancellationToken);
+			_linkedDestroyCancellationTokenSource = Application.exitCancellationToken != CancellationToken.None
+				? CancellationTokenSource.CreateLinkedTokenSource(
+					_destroyCancellationTokenSource.Token,
+					base.destroyCancellationToken,
+					Application.exitCancellationToken)
+				: CancellationTokenSource.CreateLinkedTokenSource(
+					_destroyCancellationTokenSource.Token,
+					base.destroyCancellationToken);
 		}
-
+		
 		return _linkedDestroyCancellationTokenSource.Token;
 	}
 #endif

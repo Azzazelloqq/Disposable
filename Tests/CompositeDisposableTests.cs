@@ -120,7 +120,7 @@ namespace Disposable.Tests
             var mockAsyncDisposable = new MockAsyncDisposable();
             
             // Act
-            _compositeDisposable.AddDisposable(mockAsyncDisposable);
+            _compositeDisposable.AddAsyncDisposable(mockAsyncDisposable);
             await _compositeDisposable.DisposeAsync();
             
             // Assert
@@ -159,7 +159,7 @@ namespace Disposable.Tests
             using var cts = new CancellationTokenSource();
             
             // Act
-            _compositeDisposable.AddDisposable(mockAsyncDisposable);
+            _compositeDisposable.AddAsyncDisposable(mockAsyncDisposable);
             await _compositeDisposable.DisposeAsync(cts.Token);
             
             // Assert
@@ -178,7 +178,7 @@ namespace Disposable.Tests
             cts.Cancel();
             
             // Act
-            _compositeDisposable.AddDisposable(mockAsyncDisposable);
+            _compositeDisposable.AddAsyncDisposable(mockAsyncDisposable);
             
             // Assert
             Assert.ThrowsAsync<TaskCanceledException>(
@@ -275,7 +275,7 @@ namespace Disposable.Tests
             var mockAsyncDisposable = new MockAsyncDisposableWithSync();
             
             // Act
-            _compositeDisposable.AddDisposable((IAsyncDisposable)mockAsyncDisposable);
+            _compositeDisposable.AddAsyncDisposable(mockAsyncDisposable);
             
             // Assert
             Assert.IsTrue(mockAsyncDisposable.IsAsyncDisposed, 
@@ -293,7 +293,7 @@ namespace Disposable.Tests
             var mockAsyncDisposable = new MockAsyncDisposable();
             
             // Act
-            _compositeDisposable.AddDisposable((IAsyncDisposable)mockAsyncDisposable);
+            _compositeDisposable.AddAsyncDisposable(mockAsyncDisposable);
             
             // Assert
             Assert.IsTrue(mockAsyncDisposable.IsDisposed, 
@@ -362,7 +362,7 @@ namespace Disposable.Tests
         {
             // Arrange
             var mockAsyncDisposable = new MockAsyncDisposable();
-            _compositeDisposable.AddDisposable((IAsyncDisposable)mockAsyncDisposable);
+            _compositeDisposable.AddAsyncDisposable(mockAsyncDisposable);
             
             // Act & Assert
             LogAssert.Expect(LogType.Error, "Have async disposables. Invoke async dispose with lock thread. Maybe need invoke System.Threading.Tasks.ValueTask.");

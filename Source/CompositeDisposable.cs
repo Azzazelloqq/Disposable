@@ -408,7 +408,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable(IAsyncDisposable disposable)
+	public void AddAsyncDisposable(IAsyncDisposable disposable)
 	{
 		lock (_lock)
 		{
@@ -425,7 +425,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable)
+	public void AddAsyncDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable)
 	{
 		lock (_lock)
 		{
@@ -444,7 +444,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable, IAsyncDisposable thirdDisposable)
+	public void AddAsyncDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable, IAsyncDisposable thirdDisposable)
 	{
 		lock (_lock)
 		{
@@ -465,7 +465,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable(IEnumerable<IAsyncDisposable> disposables)
+	public void AddAsyncDisposable(IEnumerable<IAsyncDisposable> disposables)
 	{
 		lock (_lock)
 		{
