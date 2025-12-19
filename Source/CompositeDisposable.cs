@@ -332,7 +332,7 @@ public class CompositeDisposable : ICompositeDisposable
 
 
 	/// <inheritdoc/>
-	public void AddDisposable(IDisposable disposable)
+	public void AddDisposable<T>(T disposable) where T : IDisposable
 	{
 		lock (_lock)
 		{
@@ -349,7 +349,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable(IDisposable firstDisposable, IDisposable secondDisposable)
+	public void AddDisposable<T>(T firstDisposable, T secondDisposable) where T : IDisposable
 	{
 		lock (_lock)
 		{
@@ -368,7 +368,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable(IDisposable firstDisposable, IDisposable secondDisposable, IDisposable thirdDisposable)
+	public void AddDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IDisposable
 	{
 		lock (_lock)
 		{
@@ -389,7 +389,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddDisposable(IEnumerable<IDisposable> disposables)
+	public void AddDisposable<T>(IEnumerable<T> disposables) where T : IDisposable
 	{
 		lock (_lock)
 		{
@@ -402,13 +402,17 @@ public class CompositeDisposable : ICompositeDisposable
 				}
 				return;
 			}
-			_disposables = EnsureListForEnumerable(_disposables, disposables, _disposablesCapacity);
-			_disposables.AddRange(disposables);
+			
+			_disposables ??= new List<IDisposable>(GetCapacityForEnumerable(disposables, _disposablesCapacity));
+			foreach (var disposable in disposables)
+			{
+				_disposables.Add(disposable);
+			}
 		}
 	}
 
 	/// <inheritdoc/>
-	public void AddAsyncDisposable(IAsyncDisposable disposable)
+	public void AddAsyncDisposable<T>(T disposable) where T : IAsyncDisposable
 	{
 		lock (_lock)
 		{
@@ -425,7 +429,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddAsyncDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable)
+	public void AddAsyncDisposable<T>(T firstDisposable, T secondDisposable) where T : IAsyncDisposable
 	{
 		lock (_lock)
 		{
@@ -444,7 +448,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddAsyncDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable, IAsyncDisposable thirdDisposable)
+	public void AddAsyncDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IAsyncDisposable
 	{
 		lock (_lock)
 		{
@@ -465,7 +469,7 @@ public class CompositeDisposable : ICompositeDisposable
 	}
 
 	/// <inheritdoc/>
-	public void AddAsyncDisposable(IEnumerable<IAsyncDisposable> disposables)
+	public void AddAsyncDisposable<T>(IEnumerable<T> disposables) where T : IAsyncDisposable
 	{
 		lock (_lock)
 		{
@@ -478,115 +482,33 @@ public class CompositeDisposable : ICompositeDisposable
 				}
 				return;
 			}
-			_asyncDisposables = EnsureListForEnumerable(_asyncDisposables, disposables, _disposablesCapacity);
-			_asyncDisposables.AddRange(disposables);
-		}
-	}
-
-	/// <inheritdoc/>
-	public void AddDisposable(DisposableBase disposable)
-	{
-		lock (_lock)
-		{
-			// If already disposed, dispose the incoming disposable immediately
-			if (_isDisposed)
+			
+			_asyncDisposables ??= new List<IAsyncDisposable>(GetCapacityForEnumerable(disposables, _disposablesCapacity));
+			foreach (var disposable in disposables)
 			{
-				disposable?.Dispose();
-				return;
+				_asyncDisposables.Add(disposable);
 			}
-
-			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
-			_asyncDisposablesWithToken.Add(disposable);
-		}
-	}
-
-	/// <inheritdoc/>
-	public void AddDisposable(DisposableBase firstDisposable, DisposableBase secondDisposable)
-	{
-		lock (_lock)
-		{
-			if (_isDisposed)
-			{
-				firstDisposable?.Dispose();
-				secondDisposable?.Dispose();
-				return;
-			}
-
-			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
-			_asyncDisposablesWithToken.Add(firstDisposable);
-			_asyncDisposablesWithToken.Add(secondDisposable);
-		}
-	}
-
-	/// <inheritdoc/>
-	public void AddDisposable(DisposableBase firstDisposable, DisposableBase secondDisposable, DisposableBase thirdDisposable)
-	{
-		lock (_lock)
-		{
-			if (_isDisposed)
-			{
-				firstDisposable?.Dispose();
-				secondDisposable?.Dispose();
-				thirdDisposable?.Dispose();
-				return;
-			}
-
-			_asyncDisposablesWithToken ??= new List<DisposableBase>(_disposablesCapacity);
-			_asyncDisposablesWithToken.Add(firstDisposable);
-			_asyncDisposablesWithToken.Add(secondDisposable);
-			_asyncDisposablesWithToken.Add(thirdDisposable);
-		}
-	}
-
-	/// <inheritdoc/>
-	public void AddDisposable(IEnumerable<DisposableBase> disposables)
-	{
-		lock (_lock)
-		{
-			if (_isDisposed)
-			{
-				foreach (var disposable in disposables)
-				{
-					disposable?.Dispose();
-				}
-				return;
-			}
-			_asyncDisposablesWithToken = EnsureListForEnumerable(_asyncDisposablesWithToken, disposables, _disposablesCapacity);
-			_asyncDisposablesWithToken.AddRange(disposables);
 		}
 	}
 
 	private static void DisposeAsyncBlocking(IAsyncDisposable asyncDisposable)
 	{
-		if (asyncDisposable is null)
-		{
-			return;
-		}
-
-		asyncDisposable.DisposeAsync().GetAwaiter().GetResult();
+		asyncDisposable?.DisposeAsync().GetAwaiter().GetResult();
 	}
 
-	private static List<T> EnsureListForEnumerable<T>(
-		List<T> current,
-		IEnumerable<T> items,
-		int defaultCapacity)
+	private static int GetCapacityForEnumerable<T>(IEnumerable<T> items, int defaultCapacity)
 	{
-		if (current != null)
-		{
-			return current;
-		}
-
 		if (items is ICollection<T> typedCollection)
 		{
-			return new List<T>(Math.Max(defaultCapacity, typedCollection.Count));
+			return Math.Max(defaultCapacity, typedCollection.Count);
 		}
 
 		if (items is ICollection untypedCollection)
 		{
-			return new List<T>(Math.Max(defaultCapacity, untypedCollection.Count));
+			return Math.Max(defaultCapacity, untypedCollection.Count);
 		}
 
-		return new List<T>(defaultCapacity);
+		return defaultCapacity;
 	}
 }
 }

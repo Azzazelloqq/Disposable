@@ -211,7 +211,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// Adds a disposable resource that should be cleaned up with this instance.
 	/// </summary>
 	/// <param name="disposable">Disposable resource to register.</param>
-	protected void AddDisposable(IDisposable disposable)
+	protected void AddDisposable<T>(T disposable) where T : IDisposable
 	{
 		if (disposable == null)
 		{
@@ -230,7 +230,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <summary>
 	/// Adds two disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable(IDisposable firstDisposable, IDisposable secondDisposable)
+	protected void AddDisposable<T>(T firstDisposable, T secondDisposable) where T : IDisposable
 	{
 		if (firstDisposable == null && secondDisposable == null)
 		{
@@ -250,7 +250,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <summary>
 	/// Adds three disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable(IDisposable firstDisposable, IDisposable secondDisposable, IDisposable thirdDisposable)
+	protected void AddDisposable<T>(T firstDisposable, T secondDisposable, T thirdDisposable) where T : IDisposable
 	{
 		if (firstDisposable == null && secondDisposable == null && thirdDisposable == null)
 		{
@@ -271,7 +271,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <summary>
 	/// Adds a collection of disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddDisposable(IEnumerable<IDisposable> disposables)
+	protected void AddDisposable<T>(IEnumerable<T> disposables) where T : IDisposable
 	{
 		if (disposables == null)
 		{
@@ -294,7 +294,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <summary>
 	/// Adds an async disposable resource that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddAsyncDisposable(IAsyncDisposable disposable)
+	protected void AddAsyncDisposable<T>(T disposable) where T : IAsyncDisposable
 	{
 		if (disposable == null)
 		{
@@ -313,7 +313,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <summary>
 	/// Adds two async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddAsyncDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable)
+	protected void AddAsyncDisposable<T>(T firstDisposable, T secondDisposable) where T : IAsyncDisposable
 	{
 		if (firstDisposable == null && secondDisposable == null)
 		{
@@ -333,10 +333,10 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <summary>
 	/// Adds three async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddAsyncDisposable(
-		IAsyncDisposable firstDisposable,
-		IAsyncDisposable secondDisposable,
-		IAsyncDisposable thirdDisposable)
+	protected void AddAsyncDisposable<T>(
+		T firstDisposable,
+		T secondDisposable,
+		T thirdDisposable) where T : IAsyncDisposable
 	{
 		if (firstDisposable == null && secondDisposable == null && thirdDisposable == null)
 		{
@@ -357,7 +357,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <summary>
 	/// Adds a collection of async disposable resources that should be cleaned up with this instance.
 	/// </summary>
-	protected void AddAsyncDisposable(IEnumerable<IAsyncDisposable> disposables)
+	protected void AddAsyncDisposable<T>(IEnumerable<T> disposables) where T : IAsyncDisposable
 	{
 		if (disposables == null)
 		{
@@ -375,92 +375,6 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		}
 
 		EnsureCompositeDisposable().AddAsyncDisposable(disposables);
-	}
-
-	/// <summary>
-	/// Adds a <see cref="DisposableBase"/> resource that should be cleaned up with this instance.
-	/// </summary>
-	protected void AddDisposable(DisposableBase disposable)
-	{
-		if (disposable == null)
-		{
-			return;
-		}
-
-		if (IsDisposed)
-		{
-			disposable.Dispose();
-			return;
-		}
-
-		EnsureCompositeDisposable().AddDisposable(disposable);
-	}
-
-	/// <summary>
-	/// Adds two <see cref="DisposableBase"/> resources that should be cleaned up with this instance.
-	/// </summary>
-	protected void AddDisposable(DisposableBase firstDisposable, DisposableBase secondDisposable)
-	{
-		if (firstDisposable == null && secondDisposable == null)
-		{
-			return;
-		}
-
-		if (IsDisposed)
-		{
-			firstDisposable?.Dispose();
-			secondDisposable?.Dispose();
-			return;
-		}
-
-		EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable);
-	}
-
-	/// <summary>
-	/// Adds three <see cref="DisposableBase"/> resources that should be cleaned up with this instance.
-	/// </summary>
-	protected void AddDisposable(
-		DisposableBase firstDisposable,
-		DisposableBase secondDisposable,
-		DisposableBase thirdDisposable)
-	{
-		if (firstDisposable == null && secondDisposable == null && thirdDisposable == null)
-		{
-			return;
-		}
-
-		if (IsDisposed)
-		{
-			firstDisposable?.Dispose();
-			secondDisposable?.Dispose();
-			thirdDisposable?.Dispose();
-			return;
-		}
-
-		EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable, thirdDisposable);
-	}
-
-	/// <summary>
-	/// Adds a collection of <see cref="DisposableBase"/> resources that should be cleaned up with this instance.
-	/// </summary>
-	protected void AddDisposable(IEnumerable<DisposableBase> disposables)
-	{
-		if (disposables == null)
-		{
-			return;
-		}
-
-		if (IsDisposed)
-		{
-			foreach (var disposable in disposables)
-			{
-				disposable?.Dispose();
-			}
-
-			return;
-		}
-
-		EnsureCompositeDisposable().AddDisposable(disposables);
 	}
 
 	/// <summary>
