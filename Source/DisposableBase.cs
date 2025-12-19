@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,7 +10,7 @@ namespace Disposable
 /// </summary>
 public abstract class DisposableBase : IDisposable, IAsyncDisposable
 {
-	protected int _disposed;
+	protected int disposed;
 	
 	/// <summary>
 	/// The cancellation token source that is used to signal disposal of the object.
@@ -17,6 +18,12 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// </summary>
 	private CancellationTokenSource _disposeCancellationTokenSource;
 	private readonly object _tokenSourceLock = new object();
+
+		/// <summary>
+		/// Composite disposable used to track child disposables.
+		/// </summary>
+		private ICompositeDisposable _compositeDisposable;
+		private readonly object _compositeDisposableLock = new object();
 	
 	/// <summary>
 	/// Gets the cancellation token source, creating it if necessary.
@@ -45,14 +52,14 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// Gets a value indicating whether this instance has been disposed.
 	/// </summary>
 	/// <value><c>true</c> if this instance is disposed; otherwise, <c>false</c>.</value>
-	public bool IsDisposed => _disposed == 1;
+	public bool IsDisposed => disposed == 1;
 
 	/// <summary>
 	/// Finalizes an instance of the <see cref="DisposableBase"/> class.
 	/// </summary>
 	~DisposableBase()
 	{
-		if (Interlocked.Exchange(ref _disposed, 1) == 0)
+		if (Interlocked.Exchange(ref disposed, 1) == 0)
 		{
 			Dispose(false);
 		}
@@ -61,7 +68,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <inheritdoc/>
 	public void Dispose()
 	{
-		if (Interlocked.Exchange(ref _disposed, 1) != 0)
+		if (Interlocked.Exchange(ref disposed, 1) != 0)
 		{
 			return;
 		}
@@ -82,6 +89,7 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		if (disposing)
 		{
 			DisposeManagedResources();
+				DisposeCompositeDisposables();
 			
 			// Cancel the cancellation token source if it was created
 			if (_disposeCancellationTokenSource != null)
@@ -113,12 +121,13 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	/// <returns>A value task that represents the asynchronous dispose operation.</returns>
 	public virtual async ValueTask DisposeAsync(CancellationToken token, bool continueOnCapturedContext = false)
 	{
-		if (Interlocked.Exchange(ref _disposed, 1) != 0)
+		if (Interlocked.Exchange(ref disposed, 1) != 0)
 		{
 			return;
 		}
 
 		await DisposeAsyncCore(token, continueOnCapturedContext).ConfigureAwait(continueOnCapturedContext);
+			await DisposeCompositeDisposablesAsync(token, continueOnCapturedContext).ConfigureAwait(continueOnCapturedContext);
 
 		// Cancel the cancellation token source if it was created
 		if (_disposeCancellationTokenSource != null)
@@ -147,6 +156,253 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		DisposeManagedResources();
 		return default;
 	}
+
+		/// <summary>
+		/// Adds a disposable resource that should be cleaned up with this instance.
+		/// </summary>
+		/// <param name="disposable">Disposable resource to register.</param>
+		protected void AddDisposable(IDisposable disposable)
+		{
+			if (disposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				disposable.Dispose();
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(disposable);
+		}
+
+		/// <summary>
+		/// Adds two disposable resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(IDisposable firstDisposable, IDisposable secondDisposable)
+		{
+			if (firstDisposable == null && secondDisposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				firstDisposable?.Dispose();
+				secondDisposable?.Dispose();
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable);
+		}
+
+		/// <summary>
+		/// Adds three disposable resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(IDisposable firstDisposable, IDisposable secondDisposable, IDisposable thirdDisposable)
+		{
+			if (firstDisposable == null && secondDisposable == null && thirdDisposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				firstDisposable?.Dispose();
+				secondDisposable?.Dispose();
+				thirdDisposable?.Dispose();
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable, thirdDisposable);
+		}
+
+		/// <summary>
+		/// Adds a collection of disposable resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(IEnumerable<IDisposable> disposables)
+		{
+			if (disposables == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				foreach (var disposable in disposables)
+				{
+					disposable?.Dispose();
+				}
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(disposables);
+		}
+
+		/// <summary>
+		/// Adds an async disposable resource that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(IAsyncDisposable disposable)
+		{
+			if (disposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				DisposeAsyncBlocking(disposable);
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(disposable);
+		}
+
+		/// <summary>
+		/// Adds two async disposable resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable)
+		{
+			if (firstDisposable == null && secondDisposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				DisposeAsyncBlocking(firstDisposable);
+				DisposeAsyncBlocking(secondDisposable);
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable);
+		}
+
+		/// <summary>
+		/// Adds three async disposable resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(IAsyncDisposable firstDisposable, IAsyncDisposable secondDisposable, IAsyncDisposable thirdDisposable)
+		{
+			if (firstDisposable == null && secondDisposable == null && thirdDisposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				DisposeAsyncBlocking(firstDisposable);
+				DisposeAsyncBlocking(secondDisposable);
+				DisposeAsyncBlocking(thirdDisposable);
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable, thirdDisposable);
+		}
+
+		/// <summary>
+		/// Adds a collection of async disposable resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(IEnumerable<IAsyncDisposable> disposables)
+		{
+			if (disposables == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				foreach (var disposable in disposables)
+				{
+					DisposeAsyncBlocking(disposable);
+				}
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(disposables);
+		}
+
+		/// <summary>
+		/// Adds a <see cref="DisposableBase"/> resource that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(DisposableBase disposable)
+		{
+			if (disposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				disposable.Dispose();
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(disposable);
+		}
+
+		/// <summary>
+		/// Adds two <see cref="DisposableBase"/> resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(DisposableBase firstDisposable, DisposableBase secondDisposable)
+		{
+			if (firstDisposable == null && secondDisposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				firstDisposable?.Dispose();
+				secondDisposable?.Dispose();
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable);
+		}
+
+		/// <summary>
+		/// Adds three <see cref="DisposableBase"/> resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(DisposableBase firstDisposable, DisposableBase secondDisposable, DisposableBase thirdDisposable)
+		{
+			if (firstDisposable == null && secondDisposable == null && thirdDisposable == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				firstDisposable?.Dispose();
+				secondDisposable?.Dispose();
+				thirdDisposable?.Dispose();
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(firstDisposable, secondDisposable, thirdDisposable);
+		}
+
+		/// <summary>
+		/// Adds a collection of <see cref="DisposableBase"/> resources that should be cleaned up with this instance.
+		/// </summary>
+		protected void AddDisposable(IEnumerable<DisposableBase> disposables)
+		{
+			if (disposables == null)
+			{
+				return;
+			}
+
+			if (IsDisposed)
+			{
+				foreach (var disposable in disposables)
+				{
+					disposable?.Dispose();
+				}
+				return;
+			}
+
+			EnsureCompositeDisposable().AddDisposable(disposables);
+		}
 
 	/// <summary>
 	/// Disposes the managed resources. Override this method to dispose managed resources.
@@ -217,9 +473,44 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		}
 		finally
 		{
-			firstRegistration.Dispose();
-			secondRegistration.Dispose();
+			await firstRegistration.DisposeAsync();
+			await secondRegistration.DisposeAsync();
 		}
+	}
+
+	private ICompositeDisposable EnsureCompositeDisposable()
+	{
+		if (_compositeDisposable != null)
+		{
+			return _compositeDisposable;
+		}
+
+		lock (_compositeDisposableLock)
+		{
+			return _compositeDisposable ??= new CompositeDisposable();
+		}
+	}
+
+	private void DisposeCompositeDisposables()
+	{
+		var compositeDisposable = Interlocked.Exchange(ref _compositeDisposable, null);
+		compositeDisposable?.Dispose();
+	}
+
+	private async ValueTask DisposeCompositeDisposablesAsync(CancellationToken token, bool continueOnCapturedContext)
+	{
+		var compositeDisposable = Interlocked.Exchange(ref _compositeDisposable, null);
+		if (compositeDisposable == null)
+		{
+			return;
+		}
+
+		await compositeDisposable.DisposeAsync(token, continueOnCapturedContext).ConfigureAwait(continueOnCapturedContext);
+	}
+
+	private static void DisposeAsyncBlocking(IAsyncDisposable asyncDisposable)
+	{
+		asyncDisposable?.DisposeAsync().GetAwaiter().GetResult();
 	}
 }
 }

@@ -412,7 +412,7 @@ namespace Disposable.Tests
         public void CallFinalizer()
         {
             // Simulate real finalizer
-            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            if (Interlocked.Exchange(ref disposed, 1) == 0)
             {
                 Dispose(false);
             }
