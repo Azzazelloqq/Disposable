@@ -78,8 +78,6 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 
 		Dispose(true);
 		GC.SuppressFinalize(this);
-
-		OnDispose();
 	}
 
 	/// <summary>
@@ -94,18 +92,9 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 		if (disposing)
 		{
 			DisposeManagedResources();
+			CancelDisposeToken();
+			OnDispose();
 			DisposeCompositeDisposables();
-
-			// Cancel the cancellation token source if it was created
-			if (_disposeCancellationTokenSource != null)
-			{
-				if (!_disposeCancellationTokenSource.IsCancellationRequested)
-				{
-					_disposeCancellationTokenSource.Cancel();
-				}
-				// Don't dispose immediately - tokens handed out to external code need to remain valid
-				// The GC will eventually clean this up
-			}
 		}
 
 		DisposeUnmanagedResources();
@@ -131,18 +120,10 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 			return;
 		}
 
+		CancelDisposeToken();
+
 		await DisposeAsyncCore(token, continueOnCapturedContext).ConfigureAwait(continueOnCapturedContext);
 		await DisposeCompositeDisposablesAsync(token, continueOnCapturedContext).ConfigureAwait(continueOnCapturedContext);
-
-		// Cancel the cancellation token source if it was created
-		if (_disposeCancellationTokenSource != null)
-		{
-			if (!_disposeCancellationTokenSource.IsCancellationRequested)
-			{
-				_disposeCancellationTokenSource.Cancel();
-			}
-			// Don't dispose immediately - tokens handed out to external code need to remain valid
-		}
 
 		DisposeUnmanagedResources();
 
@@ -436,6 +417,15 @@ public abstract class DisposableBase : IDisposable, IAsyncDisposable
 	{
 		var compositeDisposable = Interlocked.Exchange(ref _compositeDisposable, null);
 		compositeDisposable?.Dispose();
+	}
+
+	private void CancelDisposeToken()
+	{
+		if (_disposeCancellationTokenSource != null &&
+		    !_disposeCancellationTokenSource.IsCancellationRequested)
+		{
+			_disposeCancellationTokenSource.Cancel();
+		}
 	}
 
 	private async ValueTask DisposeCompositeDisposablesAsync(CancellationToken token, bool continueOnCapturedContext)

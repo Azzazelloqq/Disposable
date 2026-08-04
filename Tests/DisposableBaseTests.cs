@@ -51,6 +51,28 @@ namespace Disposable.Tests
             Assert.IsTrue(testDisposable.IsDisposed, "Object should remain disposed");
         }
 
+        [Test]
+        public void Dispose_CallsOnDisposeExactlyOnce()
+        {
+            var testDisposable = new TestDisposableBase();
+
+            testDisposable.Dispose();
+            testDisposable.Dispose();
+
+            Assert.AreEqual(1, testDisposable.OnDisposeCallCount);
+        }
+
+        [Test]
+        public void Dispose_CancelsLifetimeBeforeOnDispose()
+        {
+            var testDisposable = new TestDisposableBase();
+            testDisposable.GetDisposeCancellationToken();
+
+            testDisposable.Dispose();
+
+            Assert.IsTrue(testDisposable.WasLifetimeCancelledInOnDispose);
+        }
+
         /// <summary>
         /// Test asynchronous resource disposal
         /// </summary>
@@ -86,6 +108,17 @@ namespace Disposable.Tests
             Assert.IsTrue(testDisposable.IsDisposed, "Object should be disposed");
             Assert.IsTrue(testDisposable.AsyncDisposeCoreCalled, "DisposeAsyncCore should be called");
             Assert.AreEqual(cts.Token, testDisposable.ReceivedToken, "CancellationToken should be passed to DisposeAsyncCore");
+        }
+
+        [Test]
+        public async Task DisposeAsync_CancelsLifetimeBeforeDisposeAsyncCore()
+        {
+            var testDisposable = new TestDisposableBase();
+            testDisposable.GetDisposeCancellationToken();
+
+            await testDisposable.DisposeAsync();
+
+            Assert.IsTrue(testDisposable.WasLifetimeCancelledInDisposeAsyncCore);
         }
 
         /// <summary>
@@ -366,6 +399,9 @@ namespace Disposable.Tests
         public int DisposeCallCount { get; private set; }
         public int AsyncDisposeCallCount { get; private set; }
         public CancellationToken ReceivedToken { get; private set; }
+        public int OnDisposeCallCount { get; private set; }
+        public bool WasLifetimeCancelledInOnDispose { get; private set; }
+        public bool WasLifetimeCancelledInDisposeAsyncCore { get; private set; }
         
         // Expose protected members for testing
         public CancellationToken GetDisposeCancellationToken() => disposeCancellationToken;
@@ -401,11 +437,18 @@ namespace Disposable.Tests
             AsyncDisposeCoreCalled = true;
             AsyncDisposeCallCount++;
             ReceivedToken = token;
+            WasLifetimeCancelledInDisposeAsyncCore = disposeCancellationToken.IsCancellationRequested;
             
             // Simulate asynchronous work
             await Task.Delay(1, token);
             
             DisposeManagedResources();
+        }
+
+        protected override void OnDispose()
+        {
+            OnDisposeCallCount++;
+            WasLifetimeCancelledInOnDispose = disposeCancellationToken.IsCancellationRequested;
         }
 
         // For finalizer testing
