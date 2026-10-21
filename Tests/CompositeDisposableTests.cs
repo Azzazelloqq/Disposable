@@ -203,6 +203,26 @@ namespace Disposable.Tests
         }
 
         /// <summary>
+        /// Rethrown child exception must keep the original stack trace
+        /// </summary>
+        [Test]
+        public void Dispose_ChildThrows_PreservesOriginalStackTrace()
+        {
+            _compositeDisposable.AddDisposable(new ThrowingDisposable());
+
+            var ex = Assert.Throws<InvalidOperationException>(() => _compositeDisposable.Dispose());
+
+            StringAssert.Contains(nameof(ThrowingDisposable.ThrowFromNamedMethod), ex.StackTrace);
+        }
+
+        private class ThrowingDisposable : IDisposable
+        {
+            public void Dispose() => ThrowFromNamedMethod();
+
+            public void ThrowFromNamedMethod() => throw new InvalidOperationException("child");
+        }
+
+        /// <summary>
         /// Test multiple Dispose calls - should be safe
         /// </summary>
         [Test]

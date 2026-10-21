@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -130,7 +131,7 @@ public class CompositeDisposable : ICompositeDisposable
 
 		if (firstException != null)
 		{
-			throw firstException;
+			ExceptionDispatchInfo.Capture(firstException).Throw();
 		}
 	}
 	
@@ -233,7 +234,7 @@ public class CompositeDisposable : ICompositeDisposable
 
 		if (firstException != null)
 		{
-			throw firstException;
+			ExceptionDispatchInfo.Capture(firstException).Throw();
 		}
 	}
 	
@@ -326,7 +327,7 @@ public class CompositeDisposable : ICompositeDisposable
 
 		if (firstException != null)
 		{
-			throw firstException;
+			ExceptionDispatchInfo.Capture(firstException).Throw();
 		}
 	}
 
